@@ -11,6 +11,12 @@ const {
   windRiskForSpeed,
 } = window.AssessmentEngine;
 
+const {
+  cachedForecastBundle,
+  loadForecastBundle,
+  loadTemperatureSummary,
+} = window.ForecastData.createForecastDataService();
+
 const CSS = getComputedStyle(document.documentElement);
 
 const COLORS = {
@@ -71,11 +77,6 @@ let activeDetailsView = 'selected';
 let conditionsRequestId = 0;
 
 let chsCurrentSpeedData = null;
-const FORECAST_CACHE_TTL_MS = 15 * 60 * 1000;
-const forecastCache = new Map();
-const pendingForecastRequests = new Map();
-const temperatureCache = new Map();
-const pendingTemperatureRequests = new Map();
 
 function localDateString(date = new Date()) {
   const year = date.getFullYear();
@@ -90,116 +91,6 @@ const IDEAL_CURRENT_THRESHOLD_KN = 0.5;
 const GOOD_CURRENT_THRESHOLD_KN = 1.5;
 const CURRENT_SPEED_RANGE_DISPLAY_THRESHOLD_KN = 0.05;
 const WIND_SPEED_RANGE_DISPLAY_THRESHOLD_KMH = 0.5;
-
-function loadChsCurrentSpeed(forecastDate = selectedForecastDate) {
-  return fetch(
-    `/api/chs-current-speed?date=${encodeURIComponent(forecastDate)}`,
-  )
-    .then((response) => response.json())
-    .then((data) => data)
-    .catch((error) => {
-      console.warn('Failed to load CHS current speed:', error);
-      return null;
-    });
-}
-
-function forecastCacheKey(locationId, forecastDate) {
-  return `${locationId}:${forecastDate}`;
-}
-
-function cachedForecastBundle(locationId, forecastDate) {
-  const key = forecastCacheKey(locationId, forecastDate);
-  const cached = forecastCache.get(key);
-
-  if (!cached) return null;
-
-  if (Date.now() - cached.loadedAt > FORECAST_CACHE_TTL_MS) {
-    forecastCache.delete(key);
-    return null;
-  }
-
-  return cached;
-}
-
-function loadForecastBundle(locationId, forecastDate) {
-  const key = forecastCacheKey(locationId, forecastDate);
-  const cached = cachedForecastBundle(locationId, forecastDate);
-
-  if (cached) {
-    console.info(`Forecast cache hit: ${key}`);
-    return Promise.resolve(cached);
-  }
-
-  if (pendingForecastRequests.has(key)) {
-    return pendingForecastRequests.get(key);
-  }
-
-  const requestPromise = Promise.all([
-    loadChsCurrentSpeed(forecastDate),
-    fetch(
-      `/api/conditions?location=${encodeURIComponent(
-        locationId,
-      )}&date=${encodeURIComponent(forecastDate)}`,
-    ).then((response) => {
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      return response.json();
-    }),
-  ])
-    .then(([currentSpeed, conditions]) => {
-      const bundle = {
-        currentSpeed,
-        conditions,
-        loadedAt: Date.now(),
-      };
-
-      forecastCache.set(key, bundle);
-      return bundle;
-    })
-    .finally(() => {
-      pendingForecastRequests.delete(key);
-    });
-
-  pendingForecastRequests.set(key, requestPromise);
-  return requestPromise;
-}
-
-function loadTemperatureSummary(locationId, forecastDate) {
-  const key = forecastCacheKey(locationId, forecastDate);
-
-  if (temperatureCache.has(key)) {
-    return Promise.resolve(temperatureCache.get(key));
-  }
-
-  if (pendingTemperatureRequests.has(key)) {
-    return pendingTemperatureRequests.get(key);
-  }
-
-  const requestPromise = fetch(
-    `/api/temperatures?location=${encodeURIComponent(
-      locationId,
-    )}&date=${encodeURIComponent(forecastDate)}`,
-  )
-    .then((response) => {
-      if (!response.ok) {
-        throw new Error(`Temperature request failed: HTTP ${response.status}`);
-      }
-
-      return response.json();
-    })
-    .then((temperatures) => {
-      temperatureCache.set(key, temperatures);
-      return temperatures;
-    })
-    .finally(() => {
-      pendingTemperatureRequests.delete(key);
-    });
-
-  pendingTemperatureRequests.set(key, requestPromise);
-  return requestPromise;
-}
 
 function renderTemperatures(temperatures) {
   const waterValue = document.getElementById('waterTemperatureValue');
