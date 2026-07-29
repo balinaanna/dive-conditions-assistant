@@ -40,3 +40,12 @@ test('safety disclaimer remains available to every details view', () => {
     /Always verify conditions on site/,
   );
 });
+
+test('loading views reserve space for charts and condition details', () => {
+  assert.match(views.renderLoadingChart(), /skeleton-chart-grid/);
+  assert.match(views.renderLoadingDetails(), /loading-selected-frame/);
+  assert.equal(
+    (views.renderLoadingDetails().match(/skeleton-factor/g) || []).length,
+    3,
+  );
+});

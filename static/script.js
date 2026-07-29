@@ -176,44 +176,10 @@ function renderConditionsLoadingState() {
         <div class="col-12 chart-legend-column">${renderChartLegend()}</div>
       </div>
 
-      <div
-        class="main-tide-chart-wrap loading-chart-placeholder"
-        aria-label="Loading tide and assessment chart"
-      >
-        <div class="skeleton-chart-band"></div>
-        <div class="skeleton-chart-grid"></div>
-        <div class="skeleton-chart-axis"></div>
-      </div>
+      ${window.DiveViews.renderLoadingChart()}
     </div>
 
-    <div class="section details-view-section">
-      <div class="details-view-content">
-        <div class="details-view-panel active">
-          <div class="selected-window-frame loading-selected-frame">
-            <div class="loading-assessment-copy">
-              <div class="skeleton-line skeleton-label"></div>
-              <div class="skeleton-line skeleton-heading"></div>
-              <div class="skeleton-line skeleton-copy"></div>
-              <div class="skeleton-line skeleton-copy short"></div>
-            </div>
-            <div class="loading-factor-stack">
-              <div class="skeleton-factor"></div>
-              <div class="skeleton-factor"></div>
-              <div class="skeleton-factor"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="bottom-view-tabs" role="tablist">
-        <button class="bottom-view-tab active" type="button" disabled>
-          Selected time
-        </button>
-        <button class="bottom-view-tab" type="button" disabled>
-          Daily forecast
-        </button>
-      </div>
-    </div>
+    ${window.DiveViews.renderLoadingDetails()}
   `;
 }
 
