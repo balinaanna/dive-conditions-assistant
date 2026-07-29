@@ -399,6 +399,14 @@ function getCurrentDecimalHour() {
   return now.getHours() + now.getMinutes() / 60;
 }
 
+const forecastChartRenderer = window.ChartRenderer.createForecastChartRenderer({
+  Chart,
+  colors: COLORS,
+  formatHour: formatHour12,
+  getCurrentHourIndex,
+  windRiskForSpeed,
+});
+
 function riskColor(risk) {
   if (risk === 'low') return COLORS.condition.ideal;
   if (risk === 'medium') return COLORS.condition.ok;
@@ -413,11 +421,6 @@ function currentSpeedLineColor(speed) {
   const lightness = 52 - intensity * 30;
 
   return `hsl(140, 68%, ${lightness}%)`;
-}
-
-function riskForForecastMetric(metric, value) {
-  if (metric === 'wind_kmh') return windRiskForSpeed(value);
-  return 'low';
 }
 
 function sameCurrentRange(a, b) {
@@ -972,75 +975,6 @@ Chart.register(
   sunriseSunsetPlugin,
   tideHeightLabelPlugin,
 );
-
-function drawChart(canvasId, data, metric, label, unit) {
-  const labels = data.hourly_forecast.map((h) => formatHour12(h.time));
-  const values = data.hourly_forecast.map((h) => h[metric]);
-  const nowIndex = isTodaySelected()
-    ? getCurrentHourIndex(data.hourly_forecast)
-    : -1;
-
-  const pointColors = data.hourly_forecast.map((h) =>
-    riskColor(riskForForecastMetric(metric, h[metric])),
-  );
-
-  return new Chart(document.getElementById(canvasId), {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: [
-        {
-          label: `${label} (${unit})`,
-          data: values,
-          tension: 0.35,
-          pointRadius: 3,
-          pointHoverRadius: 6,
-          pointBackgroundColor: pointColors,
-          pointBorderColor: pointColors,
-          borderWidth: 2,
-          segment: {
-            borderColor: (ctx) => {
-              const index = ctx.p1DataIndex;
-              return riskColor(
-                riskForForecastMetric(
-                  metric,
-                  data.hourly_forecast[index][metric],
-                ),
-              );
-            },
-          },
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        nowMarker: {
-          index: nowIndex,
-        },
-        tooltip: {
-          callbacks: {
-            title: function (context) {
-              return formatHour12(
-                data.hourly_forecast[context[0].dataIndex].time,
-              );
-            },
-            label: function (context) {
-              return `${label}: ${context.raw} ${unit}`;
-            },
-          },
-        },
-      },
-      scales: {
-        y: {
-          beginAtZero: metric !== 'air_temp_c',
-        },
-      },
-    },
-  });
-}
 
 let selectedHours = [];
 let appData = null;
@@ -1639,13 +1573,14 @@ function showForecastChart(panelName) {
   if (chartMap[panelName]) {
     const [metric, label, unit] = chartMap[panelName];
 
-    activeForecastChart = drawChart(
-      'forecastChart',
-      appData,
+    activeForecastChart = forecastChartRenderer.drawForecastChart({
+      canvas: document.getElementById('forecastChart'),
       metric,
       label,
       unit,
-    );
+      data: appData,
+      showNow: isTodaySelected(),
+    });
 
     return;
   }
