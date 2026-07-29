@@ -3,7 +3,6 @@ const {
   buildSuitabilityWindows: calculateSuitabilityWindows,
   currentRiskForSpeed,
   getSlackPoints: getAssessmentSlackPoints,
-  hoursFromChartStart,
   interpolateY,
   precipitationRiskForRate,
   predominantCurrentRisk,
@@ -31,17 +30,6 @@ const COLORS = {
     ideal: CSS.getPropertyValue('--condition-ideal').trim(),
     ok: CSS.getPropertyValue('--condition-ok').trim(),
     notRecommended: CSS.getPropertyValue('--condition-not-recommended').trim(),
-  },
-  current: {
-    flood: CSS.getPropertyValue('--current-flood').trim(),
-    floodFill: CSS.getPropertyValue('--current-flood-fill').trim(),
-
-    ebb: CSS.getPropertyValue('--current-ebb').trim(),
-    ebbFill: CSS.getPropertyValue('--current-ebb-fill').trim(),
-
-    rangeIdeal: CSS.getPropertyValue('--current-range-ideal').trim(),
-    rangeGood: CSS.getPropertyValue('--current-range-good').trim(),
-    rangeBad: CSS.getPropertyValue('--current-range-bad').trim(),
   },
   text: {
     primary: CSS.getPropertyValue('--text-primary').trim(),
@@ -87,8 +75,6 @@ function localDateString(date = new Date()) {
 
 let selectedForecastDate = localDateString();
 
-const IDEAL_CURRENT_THRESHOLD_KN = 0.5;
-const GOOD_CURRENT_THRESHOLD_KN = 1.5;
 const CURRENT_SPEED_RANGE_DISPLAY_THRESHOLD_KN = 0.05;
 const WIND_SPEED_RANGE_DISPLAY_THRESHOLD_KMH = 0.5;
 
@@ -407,21 +393,17 @@ const forecastChartRenderer = window.ChartRenderer.createForecastChartRenderer({
   windRiskForSpeed,
 });
 
-function riskColor(risk) {
-  if (risk === 'low') return COLORS.condition.ideal;
-  if (risk === 'medium') return COLORS.condition.ok;
-  if (risk === 'high') return COLORS.condition.notRecommended;
-  return COLORS.border.muted;
-}
-
-function currentSpeedLineColor(speed) {
-  if (speed === null || speed === undefined) return COLORS.border.muted;
-
-  const intensity = Math.min(Math.abs(speed) / GOOD_CURRENT_THRESHOLD_KN, 1);
-  const lightness = 52 - intensity * 30;
-
-  return `hsl(140, 68%, ${lightness}%)`;
-}
+const tideChartRenderer = window.ChartRenderer.createTideChartRenderer({
+  Chart,
+  colors: COLORS,
+  formatLocalTime: formatLocalTime12,
+  formatTime: formatTime12,
+  getSelectedWindow: () => selectedSuitabilityWindow,
+  interpolateY,
+  onSelectWindow: selectSuitabilityWindow,
+  sameRange: sameCurrentRange,
+  timeToDecimalHour,
+});
 
 function sameCurrentRange(a, b) {
   if (!a || !b) return false;
@@ -429,114 +411,6 @@ function sameCurrentRange(a, b) {
   return (
     a.start === b.start && a.end === b.end && a.rangeClass === b.rangeClass
   );
-}
-
-function drawSunEventIcon(ctx, x, y, type, color) {
-  const isSunrise = type === 'sunrise';
-
-  const radius = 5;
-  const horizonHalfWidth = 10;
-  const rayLength = 2;
-
-  ctx.save();
-
-  ctx.strokeStyle = color;
-  ctx.fillStyle = color;
-  ctx.lineWidth = 1;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
-  // Horizon
-  ctx.beginPath();
-  ctx.moveTo(x - horizonHalfWidth, y);
-  ctx.lineTo(x + horizonHalfWidth, y);
-  ctx.stroke();
-
-  // Half sun
-  ctx.beginPath();
-  ctx.arc(x, y, radius, Math.PI, 2 * Math.PI);
-  ctx.stroke();
-  ctx.fill();
-
-  // Rays
-  const rayAngles = [
-    Math.PI,
-    Math.PI * 1.2,
-    Math.PI * 1.4,
-    // Math.PI * 1.5,
-    Math.PI * 1.6,
-    Math.PI * 1.8,
-    Math.PI * 2,
-  ];
-
-  rayAngles.forEach((angle) => {
-    const innerRadius = radius + 2;
-    const outerRadius = innerRadius + rayLength;
-
-    const x1 = x + Math.cos(angle) * innerRadius;
-    const y1 = y + Math.sin(angle) * innerRadius;
-    const x2 = x + Math.cos(angle) * outerRadius;
-    const y2 = y + Math.sin(angle) * outerRadius;
-
-    ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.stroke();
-  });
-
-  // Arrow above the sun
-  const arrowTopY = y - 20;
-  const arrowBottomY = y - 10;
-
-  ctx.beginPath();
-  ctx.lineWidth = 2;
-
-  if (isSunrise) {
-    // Up arrow
-    ctx.moveTo(x, arrowBottomY);
-    ctx.lineTo(x, arrowTopY);
-
-    ctx.moveTo(x, arrowTopY);
-    ctx.lineTo(x - 3, arrowTopY + 4);
-
-    ctx.moveTo(x, arrowTopY);
-    ctx.lineTo(x + 3, arrowTopY + 4);
-  } else {
-    // Down arrow
-    ctx.moveTo(x, arrowTopY);
-    ctx.lineTo(x, arrowBottomY);
-
-    ctx.moveTo(x, arrowBottomY);
-    ctx.lineTo(x - 3, arrowBottomY - 4);
-
-    ctx.moveTo(x, arrowBottomY);
-    ctx.lineTo(x + 3, arrowBottomY - 4);
-  }
-
-  ctx.stroke();
-  ctx.restore();
-}
-
-function drawSunEvent(ctx, x, iconY, type, timeLabel, color) {
-  const eventLabel = type === 'sunrise' ? 'Sunrise' : 'Sunset';
-
-  drawSunEventIcon(ctx, x, iconY, type, color);
-
-  ctx.save();
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-
-  // Time directly below icon
-  ctx.font = '11px Arial';
-  ctx.fillStyle = COLORS.text.primary;
-  ctx.fillText(timeLabel, x, iconY + 6);
-
-  // Sunrise/Sunset directly below time
-  ctx.font = '11px Arial';
-  ctx.fillStyle = COLORS.text.primary;
-  ctx.fillText(eventLabel, x, iconY + 20);
-
-  ctx.restore();
 }
 
 const nowMarkerPlugin = {
@@ -596,74 +470,6 @@ const nowMarkerPlugin = {
   },
 };
 
-const currentEventLabelsPlugin = {
-  id: 'currentEventLabels',
-
-  afterDatasetsDraw(chart, args, pluginOptions) {
-    if (!pluginOptions?.enabled) return;
-
-    const { ctx, chartArea } = chart;
-    const meta = chart.getDatasetMeta(0);
-
-    ctx.save();
-    ctx.font = '11px Arial';
-    ctx.fillStyle = COLORS.text.secondary;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-
-    meta.data.forEach((element, index) => {
-      const raw = chart.data.datasets[0].data[index];
-
-      if (!raw || raw.x < 0 || raw.x > 24) return;
-
-      const label = currentEventShortLabel(raw.qualifier);
-      const time = decimalHourToTimeLabel(raw.x);
-
-      const isBelow = raw.y < 0;
-      const yOffset = isBelow ? 18 : -18;
-
-      const x = element.x;
-      const y = Math.min(
-        Math.max(element.y + yOffset, chartArea.top + 14),
-        chartArea.bottom - 14,
-      );
-
-      ctx.fillText(label, x, y - 6);
-      ctx.fillText(time, x, y + 7);
-    });
-
-    ctx.restore();
-  },
-};
-
-const idealCurrentWindowPlugin = {
-  id: 'idealCurrentWindow',
-
-  beforeDatasetsDraw(chart, args, pluginOptions) {
-    if (!pluginOptions?.windows?.length) return;
-
-    const { ctx, chartArea, scales } = chart;
-
-    ctx.save();
-    ctx.fillStyle = COLORS.condition.ideal;
-    ctx.globalAlpha = 0.15;
-
-    pluginOptions.windows.forEach((window) => {
-      const xStart = scales.x.getPixelForValue(window.start);
-      const xEnd = scales.x.getPixelForValue(window.end);
-
-      ctx.fillRect(
-        xStart,
-        chartArea.top,
-        xEnd - xStart,
-        chartArea.bottom - chartArea.top,
-      );
-    });
-
-    ctx.restore();
-  },
-};
-
 const slackMarkersPlugin = {
   id: 'slackMarkers',
 
@@ -695,7 +501,7 @@ const slackMarkersPlugin = {
 
       ctx.beginPath();
       ctx.arc(x, y, 4, 0, Math.PI * 2);
-      ctx.fillStyle = currentSpeedLineColor(0);
+      ctx.fillStyle = pluginOptions.currentSpeedLineColor(0);
       ctx.fill();
 
       ctx.font = '600 11px Arial';
@@ -704,51 +510,11 @@ const slackMarkersPlugin = {
       ctx.textBaseline = 'middle';
 
       ctx.fillText('Slack', x, chartArea.bottom + 14);
-      ctx.fillText(formatLocalTime12(point.time), x, chartArea.bottom + 28);
-    });
-
-    ctx.restore();
-  },
-};
-
-const currentSpeedRangesPlugin = {
-  id: 'currentSpeedRanges',
-
-  beforeDatasetsDraw(chart, args, pluginOptions) {
-    if (!pluginOptions?.ranges?.length) return;
-
-    const { ctx, chartArea, scales } = chart;
-    const hoveredRange = chart.$hoveredCurrentRange;
-
-    ctx.save();
-
-    pluginOptions.ranges.forEach((range) => {
-      const xStart = scales.x.getPixelForValue(range.start);
-      const xEnd = scales.x.getPixelForValue(range.end);
-      const isHovered = sameCurrentRange(range, hoveredRange);
-
-      ctx.fillStyle = range.fill;
-      ctx.globalAlpha = isHovered ? 1 : 0.75;
-
-      ctx.fillRect(
-        xStart - 0.5,
-        chartArea.top,
-        xEnd - xStart + 1,
-        chartArea.bottom - chartArea.top,
+      ctx.fillText(
+        pluginOptions.formatTime(point.time),
+        x,
+        chartArea.bottom + 28,
       );
-
-      if (isHovered) {
-        ctx.globalAlpha = 1;
-        ctx.strokeStyle = COLORS.text.primary;
-        ctx.lineWidth = 1;
-
-        ctx.strokeRect(
-          xStart + 0.5,
-          chartArea.top + 0.5,
-          xEnd - xStart - 1,
-          chartArea.bottom - chartArea.top - 1,
-        );
-      }
     });
 
     ctx.restore();
@@ -884,7 +650,10 @@ const suitabilityWindowsPlugin = {
         window,
         chart.$hoveredSuitabilityWindow,
       );
-      const isSelected = sameCurrentRange(window, selectedSuitabilityWindow);
+      const isSelected = sameCurrentRange(
+        window,
+        pluginOptions.getSelectedWindow(),
+      );
 
       ctx.fillStyle = window.fill;
       ctx.fillRect(
@@ -968,8 +737,6 @@ Chart.register(
   eventLabelBandPlugin,
   daylightPlugin,
   nowMarkerPlugin,
-  currentEventLabelsPlugin,
-  idealCurrentWindowPlugin,
   suitabilityWindowsPlugin,
   slackMarkersPlugin,
   sunriseSunsetPlugin,
@@ -1037,19 +804,6 @@ function renderSelectedHourPanel() {
   `;
 }
 
-function decimalHourToLabel(value) {
-  const hour = ((Math.floor(value) % 24) + 24) % 24;
-  const period = hour >= 12 ? 'PM' : 'AM';
-
-  let displayHour = hour % 12;
-
-  if (displayHour === 0) {
-    displayHour = 12;
-  }
-
-  return `${displayHour}${period}`;
-}
-
 let mainTideChart = null;
 
 function renderMainTideChart(data) {
@@ -1064,204 +818,15 @@ function renderMainTideChart(data) {
 }
 
 function drawTideChart(data, canvasId = 'tideChart') {
-  const sunrise = timeToDecimalHour(data.daily.sunrise);
-  const sunset = timeToDecimalHour(data.daily.sunset);
-
-  const tideCurve = data.tides.curve || [];
-  const currentSpeedPoints = (chsCurrentSpeedData?.points || [])
-    .map((point) => ({
-      x: hoursFromChartStart(point.time, chsCurrentSpeedData.start_time),
-      y: point.speed,
-    }))
-    .sort((a, b) => a.x - b.x);
-
-  const curvePoints = tideCurve.map((point) => ({
-    x: timeToDecimalHour(point.time),
-    y: point.height_m,
-  }));
-
-  const slackPoints = getSlackPoints();
-
-  const showNow = isTodaySelected();
-  const nowX = showNow ? getCurrentDecimalHour() : null;
-  const nowY = showNow ? interpolateY(curvePoints, nowX) : null;
-
-  const suitabilityWindows = buildSuitabilityWindows(data.hourly_forecast);
-
-  function currentSpeedAt(decimalHour) {
-    const interpolated = interpolateY(currentSpeedPoints, decimalHour);
-    if (interpolated !== null) return interpolated;
-
-    const nearest = currentSpeedPoints.reduce((best, point) => {
-      if (!best) return point;
-      return Math.abs(point.x - decimalHour) < Math.abs(best.x - decimalHour)
-        ? point
-        : best;
-    }, null);
-
-    return nearest?.y ?? null;
-  }
-
-  const canvas = document.getElementById(canvasId);
-
-  const chart = new Chart(canvas, {
-    type: 'line',
-    data: {
-      datasets: [
-        {
-          label: 'Tide height',
-          data: curvePoints,
-          parsing: false,
-          tension: 0.35,
-          pointRadius: 0,
-          borderColor: COLORS.condition.ideal,
-          backgroundColor: riskColor('low'),
-          borderWidth: 2.5,
-          segment: {
-            borderColor: (context) => {
-              const midpoint = (context.p0.raw.x + context.p1.raw.x) / 2;
-              return currentSpeedLineColor(currentSpeedAt(midpoint));
-            },
-          },
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      layout: {
-        padding: {
-          top: 42,
-          bottom: 0,
-        },
-      },
-      onClick(event, elements, chart) {
-        const xValue = chart.scales.x.getValueForPixel(event.x);
-        const selectedWindow = suitabilityWindows.find(
-          (window) => xValue >= window.start && xValue < window.end,
-        );
-
-        if (selectedWindow) {
-          selectSuitabilityWindow(selectedWindow, xValue);
-          chart.draw();
-        }
-      },
-
-      onHover(event, elements, chart) {
-        const xValue = chart.scales.x.getValueForPixel(event.x);
-
-        const hoveredRange = suitabilityWindows.find(
-          (range) => xValue >= range.start && xValue <= range.end,
-        );
-
-        chart.canvas.style.cursor = hoveredRange ? 'pointer' : 'default';
-
-        if (!sameCurrentRange(chart.$hoveredSuitabilityWindow, hoveredRange)) {
-          chart.$hoveredSuitabilityWindow = hoveredRange || null;
-          chart.draw();
-        }
-      },
-      plugins: {
-        daylight: {
-          sunrise,
-          sunset,
-        },
-        sunriseSunset: {
-          sunrise,
-          sunset,
-          sunriseLabel: formatTime12(data.daily.sunrise),
-          sunsetLabel: formatTime12(data.daily.sunset),
-        },
-        tideHeightLabel: {
-          display: true,
-          text: 'Tide height (m)',
-        },
-        suitabilityWindows: {
-          windows: suitabilityWindows,
-        },
-        legend: {
-          display: false,
-        },
-        nowMarker: showNow
-          ? {
-              xValue: nowX,
-              yValue: nowY,
-            }
-          : {
-              index: -1,
-            },
-        slackMarkers: {
-          points: slackPoints,
-        },
-        tooltip: {
-          callbacks: {
-            title: function (context) {
-              const raw = context[0].raw;
-              return decimalHourToLabel(raw.x);
-            },
-            label: function (context) {
-              return `Tide height: ${context.raw.y} m`;
-            },
-            labelColor: function (context) {
-              const color = currentSpeedLineColor(
-                currentSpeedAt(context.raw.x),
-              );
-
-              return {
-                borderColor: color,
-                backgroundColor: color,
-              };
-            },
-          },
-        },
-      },
-      scales: {
-        x: {
-          type: 'linear',
-          min: 0,
-          max: 24,
-          afterFit: function (scale) {
-            scale.paddingLeft = 0;
-            scale.paddingRight = 0;
-          },
-          ticks: {
-            stepSize: 1,
-            padding: 36,
-            align: 'inner',
-            callback: function (value) {
-              return decimalHourToLabel(value);
-            },
-          },
-        },
-        y: {
-          afterFit: function (scale) {
-            scale.width = 40;
-          },
-          title: {
-            display: false,
-          },
-          ticks: {
-            padding: 0,
-          },
-        },
-      },
-    },
+  return tideChartRenderer.drawTideChart({
+    canvas: document.getElementById(canvasId),
+    currentDecimalHour: getCurrentDecimalHour(),
+    currentSpeedData: chsCurrentSpeedData,
+    data,
+    showNow: isTodaySelected(),
+    slackPoints: getSlackPoints(),
+    suitabilityWindows: buildSuitabilityWindows(data.hourly_forecast),
   });
-
-  canvas.addEventListener('mousemove', (event) => {
-    const { top, bottom } = chart.chartArea;
-    const isWithinPlotArea = event.offsetY >= top && event.offsetY <= bottom;
-
-    canvas.style.cursor = isWithinPlotArea ? 'pointer' : 'default';
-  });
-
-  canvas.addEventListener('mouseleave', () => {
-    canvas.style.cursor = 'default';
-    chart.$hoveredSuitabilityWindow = null;
-    chart.draw();
-  });
-
-  return chart;
 }
 
 function riskBadgeClass(risk) {
@@ -1744,28 +1309,6 @@ renderConditionsLoadingState();
 
 loadConditions(selectedLocationId);
 
-function currentEventShortLabel(qualifier) {
-  if (qualifier === 'SLACK') return 'Slack';
-  if (qualifier === 'EXTREMA_EBB') return 'Ebb';
-  if (qualifier === 'EXTREMA_FLOOD') return 'Flood';
-  return '';
-}
-
-function decimalHourToTimeLabel(value) {
-  const totalMinutes = Math.round(value * 60);
-  const hour24 = Math.floor(totalMinutes / 60) % 24;
-  const minute = totalMinutes % 60;
-
-  const period = hour24 >= 12 ? 'PM' : 'AM';
-  let hour12 = hour24 % 12;
-
-  if (hour12 === 0) {
-    hour12 = 12;
-  }
-
-  return `${hour12}:${String(minute).padStart(2, '0')} ${period}`;
-}
-
 function formatLocalTime12(timeString) {
   return new Date(timeString).toLocaleTimeString('en-US', {
     hour: 'numeric',
@@ -1776,80 +1319,6 @@ function formatLocalTime12(timeString) {
 
 function getSlackPoints() {
   return getAssessmentSlackPoints(chsCurrentSpeedData);
-}
-
-function currentRangeClass(absSpeed) {
-  if (absSpeed <= IDEAL_CURRENT_THRESHOLD_KN) {
-    return 'ideal';
-  }
-
-  if (absSpeed <= GOOD_CURRENT_THRESHOLD_KN) {
-    return 'good';
-  }
-
-  return 'bad';
-}
-
-function currentRangeFill(rangeClass) {
-  if (rangeClass === 'ideal') return COLORS.current.rangeIdeal;
-  if (rangeClass === 'good') return COLORS.current.rangeGood;
-  return COLORS.current.rangeBad;
-}
-
-function buildCurrentSpeedRanges() {
-  if (!chsCurrentSpeedData?.points) return [];
-
-  const currentPoints = chsCurrentSpeedData.points
-    .map((point) => ({
-      x: hoursFromChartStart(point.time, chsCurrentSpeedData.start_time),
-      y: point.speed,
-    }))
-    .sort((a, b) => a.x - b.x);
-
-  const step = 5 / 60;
-  const ranges = [];
-
-  let activeRange = null;
-  let lastRangeClass = null;
-
-  for (let x = 0; x <= 24; x += step) {
-    let y = interpolateY(currentPoints, x);
-
-    if (y === null) {
-      const nearestPoint = currentPoints.reduce((nearest, point) => {
-        if (!nearest) return point;
-        return Math.abs(point.x - x) < Math.abs(nearest.x - x)
-          ? point
-          : nearest;
-      }, null);
-
-      y = nearestPoint ? nearestPoint.y : 0;
-    }
-
-    const rangeClass = currentRangeClass(Math.abs(y));
-    const fill = currentRangeFill(rangeClass);
-
-    if (!activeRange) {
-      activeRange = { start: x, end: x + step, rangeClass, fill };
-      lastRangeClass = rangeClass;
-      continue;
-    }
-
-    if (lastRangeClass === rangeClass) {
-      activeRange.end = x + step;
-    } else {
-      ranges.push(activeRange);
-      activeRange = { start: x, end: x + step, rangeClass, fill };
-      lastRangeClass = rangeClass;
-    }
-  }
-
-  if (activeRange) {
-    activeRange.end = 24;
-    ranges.push(activeRange);
-  }
-
-  return ranges;
 }
 
 function suitabilityRangeFill(status) {

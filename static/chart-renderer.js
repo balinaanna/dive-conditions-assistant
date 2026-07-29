@@ -108,7 +108,236 @@
     };
   }
 
+  function createTideChartRenderer({
+    Chart,
+    colors,
+    formatLocalTime,
+    formatTime,
+    getSelectedWindow,
+    interpolateY,
+    onSelectWindow,
+    sameRange,
+    timeToDecimalHour,
+  }) {
+    function currentSpeedLineColor(speed) {
+      if (speed === null || speed === undefined) {
+        return colors.border.muted;
+      }
+
+      const intensity = Math.min(Math.abs(speed) / 1.5, 1);
+      const lightness = 52 - intensity * 30;
+      return `hsl(140, 68%, ${lightness}%)`;
+    }
+
+    function decimalHourLabel(value) {
+      const hour = ((Math.floor(value) % 24) + 24) % 24;
+      const period = hour >= 12 ? 'PM' : 'AM';
+      return `${hour % 12 || 12}${period}`;
+    }
+
+    function drawTideChart({
+      canvas,
+      currentDecimalHour,
+      currentSpeedData,
+      data,
+      showNow,
+      slackPoints,
+      suitabilityWindows,
+    }) {
+      const sunrise = timeToDecimalHour(data.daily.sunrise);
+      const sunset = timeToDecimalHour(data.daily.sunset);
+      const currentSpeedPoints = (currentSpeedData?.points || [])
+        .map((point) => ({
+          x:
+            (new Date(point.time) - new Date(currentSpeedData.start_time)) /
+            (1000 * 60 * 60),
+          y: point.speed,
+        }))
+        .sort((a, b) => a.x - b.x);
+      const curvePoints = (data.tides.curve || []).map((point) => ({
+        x: timeToDecimalHour(point.time),
+        y: point.height_m,
+      }));
+      const nowY = showNow
+        ? interpolateY(curvePoints, currentDecimalHour)
+        : null;
+
+      function currentSpeedAt(decimalHour) {
+        const interpolated = interpolateY(currentSpeedPoints, decimalHour);
+        if (interpolated !== null) return interpolated;
+
+        const nearest = currentSpeedPoints.reduce((best, point) => {
+          if (!best) return point;
+          return Math.abs(point.x - decimalHour) <
+            Math.abs(best.x - decimalHour)
+            ? point
+            : best;
+        }, null);
+
+        return nearest?.y ?? null;
+      }
+
+      const chart = new Chart(canvas, {
+        type: 'line',
+        data: {
+          datasets: [
+            {
+              label: 'Tide height',
+              data: curvePoints,
+              parsing: false,
+              tension: 0.35,
+              pointRadius: 0,
+              borderColor: colors.condition.ideal,
+              backgroundColor: colors.condition.ideal,
+              borderWidth: 2.5,
+              segment: {
+                borderColor: (context) => {
+                  const midpoint = (context.p0.raw.x + context.p1.raw.x) / 2;
+                  return currentSpeedLineColor(currentSpeedAt(midpoint));
+                },
+              },
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: {
+            padding: {
+              top: 42,
+              bottom: 0,
+            },
+          },
+          onClick(event, elements, activeChart) {
+            const xValue = activeChart.scales.x.getValueForPixel(event.x);
+            const selectedWindow = suitabilityWindows.find(
+              (window) => xValue >= window.start && xValue < window.end,
+            );
+
+            if (selectedWindow) {
+              onSelectWindow(selectedWindow, xValue);
+              activeChart.draw();
+            }
+          },
+          onHover(event, elements, activeChart) {
+            const xValue = activeChart.scales.x.getValueForPixel(event.x);
+            const hoveredWindow = suitabilityWindows.find(
+              (window) => xValue >= window.start && xValue <= window.end,
+            );
+
+            activeChart.canvas.style.cursor = hoveredWindow
+              ? 'pointer'
+              : 'default';
+
+            if (
+              !sameRange(
+                activeChart.$hoveredSuitabilityWindow,
+                hoveredWindow,
+              )
+            ) {
+              activeChart.$hoveredSuitabilityWindow = hoveredWindow || null;
+              activeChart.draw();
+            }
+          },
+          plugins: {
+            daylight: { sunrise, sunset },
+            sunriseSunset: {
+              sunrise,
+              sunset,
+              sunriseLabel: formatTime(data.daily.sunrise),
+              sunsetLabel: formatTime(data.daily.sunset),
+            },
+            tideHeightLabel: {
+              display: true,
+              text: 'Tide height (m)',
+            },
+            suitabilityWindows: {
+              windows: suitabilityWindows,
+              getSelectedWindow,
+            },
+            legend: { display: false },
+            nowMarker: showNow
+              ? {
+                  xValue: currentDecimalHour,
+                  yValue: nowY,
+                }
+              : {
+                  index: -1,
+                },
+            slackMarkers: {
+              points: slackPoints,
+              formatTime: formatLocalTime,
+              currentSpeedLineColor,
+            },
+            tooltip: {
+              callbacks: {
+                title(context) {
+                  return decimalHourLabel(context[0].raw.x);
+                },
+                label(context) {
+                  return `Tide height: ${context.raw.y} m`;
+                },
+                labelColor(context) {
+                  const color = currentSpeedLineColor(
+                    currentSpeedAt(context.raw.x),
+                  );
+                  return {
+                    borderColor: color,
+                    backgroundColor: color,
+                  };
+                },
+              },
+            },
+          },
+          scales: {
+            x: {
+              type: 'linear',
+              min: 0,
+              max: 24,
+              afterFit(scale) {
+                scale.paddingLeft = 0;
+                scale.paddingRight = 0;
+              },
+              ticks: {
+                stepSize: 1,
+                padding: 36,
+                align: 'inner',
+                callback: decimalHourLabel,
+              },
+            },
+            y: {
+              afterFit(scale) {
+                scale.width = 40;
+              },
+              title: { display: false },
+              ticks: { padding: 0 },
+            },
+          },
+        },
+      });
+
+      canvas.addEventListener('mousemove', (event) => {
+        const { top, bottom } = chart.chartArea;
+        const withinPlot = event.offsetY >= top && event.offsetY <= bottom;
+        canvas.style.cursor = withinPlot ? 'pointer' : 'default';
+      });
+
+      canvas.addEventListener('mouseleave', () => {
+        canvas.style.cursor = 'default';
+        chart.$hoveredSuitabilityWindow = null;
+        chart.draw();
+      });
+
+      return chart;
+    }
+
+    return {
+      drawTideChart,
+    };
+  }
+
   return {
     createForecastChartRenderer,
+    createTideChartRenderer,
   };
 });

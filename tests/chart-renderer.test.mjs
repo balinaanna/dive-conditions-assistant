@@ -3,7 +3,10 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { createForecastChartRenderer } = require('../static/chart-renderer.js');
+const {
+  createForecastChartRenderer,
+  createTideChartRenderer,
+} = require('../static/chart-renderer.js');
 
 function createRenderer() {
   class FakeChart {
@@ -77,4 +80,79 @@ test('air temperature chart does not force the axis to zero', () => {
     chart.config.options.plugins.tooltip.callbacks.label({ raw: 15 }),
     'Air temperature: 15 °C',
   );
+});
+
+test('tide renderer wires assessment windows to chart selection', () => {
+  class FakeChart {
+    constructor(canvas, config) {
+      this.canvas = canvas;
+      this.config = config;
+      this.scales = {
+        x: {
+          getValueForPixel: (value) => value,
+        },
+      };
+      this.drawCount = 0;
+    }
+
+    draw() {
+      this.drawCount += 1;
+    }
+  }
+
+  const listeners = {};
+  const canvas = {
+    style: {},
+    addEventListener(name, listener) {
+      listeners[name] = listener;
+    },
+  };
+  const selections = [];
+  const renderer = createTideChartRenderer({
+    Chart: FakeChart,
+    colors: {
+      condition: { ideal: 'green' },
+      border: { muted: 'gray' },
+    },
+    formatLocalTime: () => '12:00 PM',
+    formatTime: () => '12:00 PM',
+    getSelectedWindow: () => null,
+    interpolateY: () => 2,
+    onSelectWindow: (...args) => selections.push(args),
+    sameRange: (left, right) => left === right,
+    timeToDecimalHour: (time) => Number(time),
+  });
+  const window = { start: 10, end: 12, status: 'Good' };
+  const chart = renderer.drawTideChart({
+    canvas,
+    currentDecimalHour: 11,
+    currentSpeedData: {
+      start_time: '2026-07-29T00:00:00-07:00',
+      points: [],
+    },
+    data: {
+      daily: { sunrise: '6', sunset: '21' },
+      tides: {
+        curve: [
+          { time: '0', height_m: 1 },
+          { time: '12', height_m: 4 },
+        ],
+      },
+    },
+    showNow: true,
+    slackPoints: [],
+    suitabilityWindows: [window],
+  });
+
+  chart.config.options.onClick({ x: 11 }, [], chart);
+
+  assert.deepEqual(selections, [[window, 11]]);
+  assert.equal(chart.drawCount, 1);
+  assert.equal(
+    chart.config.options.plugins.suitabilityWindows.windows[0],
+    window,
+  );
+  assert.equal(chart.config.options.plugins.nowMarker.xValue, 11);
+  assert.equal(typeof listeners.mousemove, 'function');
+  assert.equal(typeof listeners.mouseleave, 'function');
 });
