@@ -114,75 +114,18 @@ function forecastDateOptions() {
 }
 
 function renderForecastDateSelector() {
-  return `
-    <div class="forecast-date-selector" aria-label="Forecast date">
-      ${forecastDateOptions()
-        .map(
-          (option) => `
-            <button
-              class="forecast-date-choice ${
-                option.value === selectedForecastDate ? 'active' : ''
-              }"
-              type="button"
-              aria-pressed="${
-                option.value === selectedForecastDate ? 'true' : 'false'
-              }"
-              onclick="selectForecastDate('${option.value}')"
-            >
-              <span class="forecast-date-day">${option.dayLabel}</span>
-              <span class="forecast-date-value">${option.dateLabel}</span>
-            </button>
-          `,
-        )
-        .join('')}
-    </div>
-  `;
+  return window.DiveViews.renderForecastDateSelector(
+    forecastDateOptions(),
+    selectedForecastDate,
+  );
 }
 
 function renderChartLegend() {
-  return `
-    <div class="chart-range-legend">
-      <div class="legend-block legend-block-assessment">
-        <div class="legend-group-label">Assessment</div>
-        <div class="suitability-key">
-          <span class="status-key-item">
-            <span class="status-key-swatch ideal"></span>
-            Ideal
-          </span>
-          <span class="status-key-item">
-            <span class="status-key-swatch good"></span>
-            Good
-          </span>
-          <span class="status-key-item">
-            <span class="status-key-swatch caution"></span>
-            Use caution
-          </span>
-          <span class="status-key-item">
-            <span class="status-key-swatch bad"></span>
-            Not recommended
-          </span>
-        </div>
-      </div>
-
-      <div class="legend-block legend-block-current">
-        <div class="current-speed-key-label">Current speed</div>
-        <div class="current-speed-key">
-          <span class="current-speed-key-value">0</span>
-          <span class="current-speed-gradient" aria-hidden="true"></span>
-          <span class="current-speed-key-value">High</span>
-        </div>
-      </div>
-    </div>
-  `;
+  return window.DiveViews.renderChartLegend();
 }
 
 function renderSafetyDisclaimer() {
-  return `
-    <p class="safety-disclaimer">
-      Forecast guidance only. Always verify conditions on site and use your
-      own judgment before entering the water.
-    </p>
-  `;
+  return window.DiveViews.renderSafetyDisclaimer();
 }
 
 function selectedLocationName() {
