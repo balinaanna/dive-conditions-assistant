@@ -1,3 +1,16 @@
+const {
+  SUITABILITY_SAMPLE_STEP_HOURS,
+  buildSuitabilityWindows: calculateSuitabilityWindows,
+  currentRiskForSpeed,
+  getSlackPoints: getAssessmentSlackPoints,
+  hoursFromChartStart,
+  interpolateY,
+  precipitationRiskForRate,
+  predominantCurrentRisk,
+  timeToDecimalHour,
+  windRiskForSpeed,
+} = window.AssessmentEngine;
+
 const CSS = getComputedStyle(document.documentElement);
 
 const COLORS = {
@@ -77,7 +90,6 @@ const IDEAL_CURRENT_THRESHOLD_KN = 0.5;
 const GOOD_CURRENT_THRESHOLD_KN = 1.5;
 const CURRENT_SPEED_RANGE_DISPLAY_THRESHOLD_KN = 0.05;
 const WIND_SPEED_RANGE_DISPLAY_THRESHOLD_KMH = 0.5;
-const SUITABILITY_SAMPLE_STEP_HOURS = 0.25;
 
 function loadChsCurrentSpeed(forecastDate = selectedForecastDate) {
   return fetch(
@@ -510,20 +522,6 @@ function currentSpeedLineColor(speed) {
   const lightness = 52 - intensity * 30;
 
   return `hsl(140, 68%, ${lightness}%)`;
-}
-
-function windRiskForSpeed(speed) {
-  if (speed === null || speed === undefined) return 'unknown';
-  if (speed > 20) return 'high';
-  if (speed > 12) return 'medium';
-  return 'low';
-}
-
-function precipitationRiskForRate(rate) {
-  if (rate === null || rate === undefined) return 'unknown';
-  if (rate > 4) return 'high';
-  if (rate > 0.5) return 'medium';
-  return 'low';
 }
 
 function riskForForecastMetric(metric, value) {
@@ -1214,28 +1212,6 @@ function renderSelectedHourPanel() {
   `;
 }
 
-function timeToDecimalHour(timeString) {
-  const hour = parseInt(timeString.slice(11, 13));
-  const minute = parseInt(timeString.slice(14, 16));
-  return hour + minute / 60;
-}
-
-function interpolateY(points, xValue) {
-  if (!points || points.length === 0) return null;
-
-  for (let i = 0; i < points.length - 1; i++) {
-    const current = points[i];
-    const next = points[i + 1];
-
-    if (xValue >= current.x && xValue <= next.x) {
-      const ratio = (xValue - current.x) / (next.x - current.x);
-      return current.y + ratio * (next.y - current.y);
-    }
-  }
-
-  return null;
-}
-
 function decimalHourToLabel(value) {
   const hour = ((Math.floor(value) % 24) + 24) % 24;
   const period = hour >= 12 ? 'PM' : 'AM';
@@ -1498,30 +1474,6 @@ function renderFactorCard(label, value, risk, state, role) {
       </div>
     </div>
   `;
-}
-
-function currentRiskForSpeed(speed) {
-  if (speed === null || speed === undefined) return 'unknown';
-  if (speed > 1.5) return 'high';
-  if (speed > 0.75) return 'medium';
-  return 'low';
-}
-
-function predominantCurrentRisk(speeds, fallbackRisk) {
-  if (!speeds.length) return fallbackRisk;
-
-  const riskCounts = speeds.reduce(
-    (counts, speed) => {
-      counts[currentRiskForSpeed(speed)] += 1;
-      return counts;
-    },
-    { low: 0, medium: 0, high: 0 },
-  );
-  const halfWindow = speeds.length / 2;
-
-  if (riskCounts.high >= halfWindow) return 'high';
-  if (riskCounts.high + riskCounts.medium >= halfWindow) return 'medium';
-  return 'low';
 }
 
 function renderSelectedHourDetails(index) {
@@ -1966,13 +1918,6 @@ renderConditionsLoadingState();
 
 loadConditions(selectedLocationId);
 
-function hoursFromChartStart(timeString, chartStartTimeString) {
-  const pointTime = new Date(timeString);
-  const startTime = new Date(chartStartTimeString);
-
-  return (pointTime - startTime) / (1000 * 60 * 60);
-}
-
 function currentEventShortLabel(qualifier) {
   if (qualifier === 'SLACK') return 'Slack';
   if (qualifier === 'EXTREMA_EBB') return 'Ebb';
@@ -2004,15 +1949,7 @@ function formatLocalTime12(timeString) {
 }
 
 function getSlackPoints() {
-  if (!chsCurrentSpeedData?.points) return [];
-
-  return chsCurrentSpeedData.points
-    .filter((point) => point.qualifier === 'SLACK')
-    .map((point) => ({
-      x: hoursFromChartStart(point.time, chsCurrentSpeedData.start_time),
-      time: point.time,
-    }))
-    .filter((point) => point.x >= 0 && point.x <= 24);
+  return getAssessmentSlackPoints(chsCurrentSpeedData);
 }
 
 function currentRangeClass(absSpeed) {
@@ -2097,200 +2034,19 @@ function suitabilityRangeFill(status) {
 }
 
 function buildSuitabilityWindows(hours) {
-  if (!hours?.length) return [];
-
-  const currentPoints = (chsCurrentSpeedData?.points || [])
-    .map((point) => ({
-      x: hoursFromChartStart(point.time, chsCurrentSpeedData.start_time),
-      y: point.speed,
-    }))
-    .sort((a, b) => a.x - b.x);
-  const slackPoints = getSlackPoints();
-  const tideEvents = (appData?.tides?.events || []).map((event) => ({
-    x: timeToDecimalHour(event.time),
-    height: event.height_m,
+  return calculateSuitabilityWindows({
+    hours,
+    currentSpeedData: chsCurrentSpeedData,
+    tides: appData?.tides,
+    daily: appData?.daily,
+  }).map((window) => ({
+    ...window,
+    fill: suitabilityRangeFill(window.status),
   }));
-  const tideHeightMidpoint =
-    tideEvents.length > 0
-      ? (Math.max(...tideEvents.map((event) => event.height)) +
-          Math.min(...tideEvents.map((event) => event.height))) /
-        2
-      : null;
-  const sunrise = timeToDecimalHour(appData.daily.sunrise);
-  const sunset = timeToDecimalHour(appData.daily.sunset);
-  const windPoints = hours.map((hour) => ({
-    x: timeToDecimalHour(hour.time),
-    y: hour.wind_kmh,
-  }));
-  const rainPoints = hours.map((hour) => ({
-    x: timeToDecimalHour(hour.time),
-    y: hour.precipitation_mm,
-  }));
-
-  function valueAt(points, x) {
-    const interpolated = interpolateY(points, x);
-    if (interpolated !== null) return interpolated;
-
-    const nearest = points.reduce((best, point) => {
-      if (!best) return point;
-      return Math.abs(point.x - x) < Math.abs(best.x - x) ? point : best;
-    }, null);
-
-    return nearest?.y ?? null;
-  }
-
-  function assessSample(x) {
-    const speed = valueAt(currentPoints, x);
-    const wind = valueAt(windPoints, x);
-    const rain = valueAt(rainPoints, x);
-
-    if (x < sunrise || x >= sunset) {
-      return {
-        status: 'Not Recommended',
-        score: 0,
-        reason: 'This window is outside daylight hours.',
-        currentSpeed: speed,
-        wind,
-        rain,
-      };
-    }
-
-    const absSpeed = speed === null ? null : Math.abs(speed);
-    let score = 45;
-    const reasons = [];
-
-    if (absSpeed === null) {
-      reasons.push('Current-speed data is unavailable');
-    } else if (absSpeed <= 0.35) {
-      score = 78;
-      reasons.push('Current is near slack');
-    } else if (absSpeed <= 0.75) {
-      score = 68;
-      reasons.push('Current is relatively mild');
-    } else if (absSpeed <= 1.5) {
-      score = 45;
-      reasons.push('Current requires caution');
-    } else {
-      score = 20;
-      reasons.push('Current is strong');
-    }
-
-    const nearestSlack = slackPoints.reduce((best, point) => {
-      if (!best) return point;
-      return Math.abs(point.x - x) < Math.abs(best.x - x) ? point : best;
-    }, null);
-
-    if (nearestSlack && Math.abs(nearestSlack.x - x) <= 0.75) {
-      const nearestTide = tideEvents.reduce((best, event) => {
-        if (!best) return event;
-        return Math.abs(event.x - nearestSlack.x) <
-          Math.abs(best.x - nearestSlack.x)
-          ? event
-          : best;
-      }, null);
-      const isHighSlack =
-        nearestTide &&
-        tideHeightMidpoint !== null &&
-        nearestTide.height >= tideHeightMidpoint;
-
-      score += isHighSlack ? 12 : 5;
-      reasons[0] = isHighSlack
-        ? 'Slack current near high tide is especially favorable'
-        : 'Conditions improve around slack current';
-    }
-
-    const windRisk = windRiskForSpeed(wind);
-
-    if (windRisk === 'high') {
-      score -= 10;
-      reasons.push('wind is strong');
-    } else if (windRisk === 'medium') {
-      score -= 4;
-      reasons.push('wind requires caution');
-    }
-
-    const precipitationRisk = precipitationRiskForRate(rain);
-
-    if (precipitationRisk === 'high') {
-      score -= 6;
-      reasons.push('heavy rain slightly lowers suitability');
-    } else if (precipitationRisk === 'medium') {
-      score -= 3;
-      reasons.push('rain slightly lowers suitability');
-    }
-
-    const status =
-      score >= 88
-        ? 'Ideal'
-        : score >= 68
-          ? 'Good'
-          : score >= 40
-            ? 'Ok'
-            : 'Not Recommended';
-
-    return {
-      status,
-      score,
-      reason: `${reasons.join('; ')}.`,
-      currentSpeed: speed,
-      wind,
-      rain,
-    };
-  }
-
-  const samples = [];
-  const step = SUITABILITY_SAMPLE_STEP_HOURS;
-
-  for (let start = 0; start < 24; start += step) {
-    const assessment = assessSample(start + step / 2);
-    samples.push({
-      start,
-      end: start + step,
-      ...assessment,
-    });
-  }
-
-  const windows = [];
-
-  samples.forEach((sample) => {
-    const active = windows[windows.length - 1];
-
-    if (active && active.status === sample.status) {
-      active.end = sample.end;
-      active.samples.push({
-        time: sample.start + step / 2,
-        reason: sample.reason,
-        currentSpeed: sample.currentSpeed,
-        wind: sample.wind,
-        rain: sample.rain,
-      });
-      if (sample.score > active.bestScore) {
-        active.bestScore = sample.score;
-        active.representativeTime = sample.start + step / 2;
-        active.reason = sample.reason;
-      }
-      return;
-    }
-
-    windows.push({
-      start: sample.start,
-      end: sample.end,
-      status: sample.status,
-      fill: suitabilityRangeFill(sample.status),
-      bestScore: sample.score,
-      representativeTime: sample.start + step / 2,
-      reason: sample.reason,
-      samples: [
-        {
-          time: sample.start + step / 2,
-          reason: sample.reason,
-          currentSpeed: sample.currentSpeed,
-          wind: sample.wind,
-          rain: sample.rain,
-        },
-      ],
-    });
-  });
-
-  return windows;
 }
+
+Object.assign(window, {
+  selectForecastDate,
+  setDetailsView,
+  showForecastChart,
+});

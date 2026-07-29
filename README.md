@@ -44,6 +44,14 @@ Debug mode is disabled by default. Enable it locally when needed:
 FLASK_DEBUG=true python3 app.py
 ```
 
+## Tests
+
+Run the deterministic assessment-rule tests with:
+
+```bash
+node --test tests/assessment-engine.test.mjs
+```
+
 ## Production
 
 Run the application with Gunicorn:
