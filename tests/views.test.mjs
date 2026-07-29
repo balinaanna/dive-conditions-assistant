@@ -49,3 +49,40 @@ test('loading views reserve space for charts and condition details', () => {
     3,
   );
 });
+
+test('selected-window view renders decision and all condition factors', () => {
+  const html = views.renderSelectedWindowPanel({
+    status: 'Good',
+    windowLabel: '1:00 PM – 2:00 PM',
+    explanation: 'Current is mild.',
+    primaryAction: 'Conditions look good for this window.',
+    factors: [
+      {
+        label: 'Current speed',
+        value: '0.25 kn',
+        risk: 'low',
+        state: 'Slack',
+        role: 'Favorable',
+      },
+      {
+        label: 'Wind',
+        value: '5.0 km/h',
+        risk: 'low',
+        state: 'Light',
+        role: 'Favorable',
+      },
+      {
+        label: 'Precipitation',
+        value: '0.0 mm total',
+        risk: 'low',
+        state: 'None',
+        role: 'No precipitation expected',
+      },
+    ],
+  });
+
+  assert.match(html, /1:00 PM – 2:00 PM Conditions/);
+  assert.match(html, /status-good/);
+  assert.match(html, /Current is mild/);
+  assert.equal((html.match(/class="factor-card /g) || []).length, 3);
+});

@@ -415,43 +415,6 @@ function drawTideChart(data, canvasId = 'tideChart') {
   });
 }
 
-function riskBadgeClass(risk) {
-  if (risk === 'high') return 'risk-high';
-  if (risk === 'medium') return 'risk-medium';
-  if (risk === 'low') return 'risk-low';
-  return 'risk-unknown';
-}
-
-function statusBadgeClass(status) {
-  if (status === 'Ideal') return 'status-ideal';
-  if (status === 'Good') return 'status-good';
-  if (status === 'Ok') return 'status-ok';
-  return 'status-not-recommended';
-}
-
-function statusDisplayLabel(status) {
-  if (status === 'Ideal') return 'Ideal';
-  if (status === 'Good') return 'Good';
-  if (status === 'Ok') return 'Use caution';
-  return 'Not recommended';
-}
-
-function renderFactorCard(label, value, risk, state, role) {
-  return `
-    <div class="factor-card factor-card-${risk}">
-      <span class="factor-label">${label}</span>
-      <div class="factor-value-row">
-        <span class="risk-dot ${riskBadgeClass(risk)}"></span>
-        <strong>${value}</strong>
-      </div>
-      <div class="factor-meaning">
-        <span class="factor-state factor-state-${risk}">${state}</span>
-        <span class="factor-role">${role}</span>
-      </div>
-    </div>
-  `;
-}
-
 function renderSelectedHourDetails(index) {
   const hour = selectedHours[index];
 
@@ -588,65 +551,46 @@ function renderSelectedHourDetails(index) {
           ? 'Conditions look good for this window.'
           : 'Use this window with caution.';
 
-  return `
-    <div class="assessment-content-grid">
-      <div class="assessment-decision">
-        <div class="assessment-overview ${statusBadgeClass(status)}-overview">
-          <div class="assessment-window-label">Selected window</div>
-          <div class="assessment-title-row">
-            <div class="details-time">${formatSuitabilityWindow(selectedSuitabilityWindow)} Conditions</div>
-            <span class="status-chip ${statusBadgeClass(status)}">
-              ${statusDisplayLabel(status)}
-            </span>
-          </div>
-          <div class="assessment-rationale">
-            <span class="assessment-rationale-label">Key reason</span>
-            <span class="assessment-summary">${explanation}</span>
-          </div>
-        </div>
+  const precipitationRole =
+    maximumWindowRain !== null && maximumWindowRain <= 0.05
+      ? 'No precipitation expected'
+      : peakWindowRainSample
+        ? `Peak: ${maximumWindowRain.toFixed(1)} mm/h around ${formatDecimalTime(
+            Math.round(peakWindowRainSample.time * 4) / 4,
+          )}`
+        : maximumWindowRain === null
+          ? 'Peak unavailable'
+          : `Peak: ${maximumWindowRain.toFixed(1)} mm/h`;
 
-        <div class="recommendation-block">
-          <div class="assessment-section-title">Recommendation</div>
-          <div class="recommendation-action">${primaryAction}</div>
-          <div class="recommendation-note">
-            Confirm actual conditions on site before entering the water.
-          </div>
-        </div>
-      </div>
-
-      <div class="factor-grid">
-        ${renderFactorCard(
-          'Current speed',
-          currentValue,
-          currentRisk,
-          currentState,
-          currentRole,
-        )}
-        ${renderFactorCard(
-          'Wind',
-          `${formattedWindValue} km/h`,
-          windRisk,
-          windState,
-          factorRole(windRisk),
-        )}
-        ${renderFactorCard(
-          'Precipitation',
-          `${rainValue} mm total`,
-          rainRisk,
-          rainState,
-          maximumWindowRain !== null && maximumWindowRain <= 0.05
-            ? 'No precipitation expected'
-            : peakWindowRainSample
-              ? `Peak: ${maximumWindowRain.toFixed(1)} mm/h around ${formatDecimalTime(
-                  Math.round(peakWindowRainSample.time * 4) / 4,
-                )}`
-              : maximumWindowRain === null
-                ? 'Peak unavailable'
-                : `Peak: ${maximumWindowRain.toFixed(1)} mm/h`,
-        )}
-      </div>
-    </div>
-  `;
+  return window.DiveViews.renderSelectedWindowPanel({
+    explanation,
+    primaryAction,
+    status,
+    windowLabel: formatSuitabilityWindow(selectedSuitabilityWindow),
+    factors: [
+      {
+        label: 'Current speed',
+        value: currentValue,
+        risk: currentRisk,
+        state: currentState,
+        role: currentRole,
+      },
+      {
+        label: 'Wind',
+        value: `${formattedWindValue} km/h`,
+        risk: windRisk,
+        state: windState,
+        role: factorRole(windRisk),
+      },
+      {
+        label: 'Precipitation',
+        value: `${rainValue} mm total`,
+        risk: rainRisk,
+        state: rainState,
+        role: precipitationRole,
+      },
+    ],
+  });
 }
 
 function renderForecastCharts() {

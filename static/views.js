@@ -119,11 +119,81 @@
     `;
   }
 
+  function statusClass(status) {
+    if (status === 'Ideal') return 'status-ideal';
+    if (status === 'Good') return 'status-good';
+    if (status === 'Ok') return 'status-ok';
+    return 'status-not-recommended';
+  }
+
+  function statusLabel(status) {
+    if (status === 'Ok') return 'Use caution';
+    if (status === 'Not Recommended') return 'Not recommended';
+    return status;
+  }
+
+  function renderFactorCard({ label, value, risk, state, role }) {
+    return `
+      <div class="factor-card factor-card-${risk}">
+        <span class="factor-label">${label}</span>
+        <div class="factor-value-row">
+          <span class="risk-dot risk-${risk}"></span>
+          <strong>${value}</strong>
+        </div>
+        <div class="factor-meaning">
+          <span class="factor-state factor-state-${risk}">${state}</span>
+          <span class="factor-role">${role}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderSelectedWindowPanel({
+    explanation,
+    factors,
+    primaryAction,
+    status,
+    windowLabel,
+  }) {
+    const badgeClass = statusClass(status);
+
+    return `
+      <div class="assessment-content-grid">
+        <div class="assessment-decision">
+          <div class="assessment-overview ${badgeClass}-overview">
+            <div class="assessment-window-label">Selected window</div>
+            <div class="assessment-title-row">
+              <div class="details-time">${windowLabel} Conditions</div>
+              <span class="status-chip ${badgeClass}">
+                ${statusLabel(status)}
+              </span>
+            </div>
+            <div class="assessment-rationale">
+              <span class="assessment-rationale-label">Key reason</span>
+              <span class="assessment-summary">${explanation}</span>
+            </div>
+          </div>
+          <div class="recommendation-block">
+            <div class="assessment-section-title">Recommendation</div>
+            <div class="recommendation-action">${primaryAction}</div>
+            <div class="recommendation-note">
+              Confirm actual conditions on site before entering the water.
+            </div>
+          </div>
+        </div>
+        <div class="factor-grid">
+          ${factors.map(renderFactorCard).join('')}
+        </div>
+      </div>
+    `;
+  }
+
   return {
     renderChartLegend,
     renderForecastDateSelector,
     renderLoadingChart,
     renderLoadingDetails,
     renderSafetyDisclaimer,
+    renderSelectedWindowPanel,
   };
 });
