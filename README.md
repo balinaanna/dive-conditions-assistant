@@ -38,8 +38,30 @@ python3 app.py
 
 Open `http://127.0.0.1:5001`.
 
+Debug mode is disabled by default. Enable it locally when needed:
+
+```bash
+FLASK_DEBUG=true python3 app.py
+```
+
+## Production
+
+Run the application with Gunicorn:
+
+```bash
+gunicorn -c gunicorn.conf.py app:app
+```
+
+The server reads `PORT` from the environment and defaults to port `8000`.
+Worker, thread, and timeout settings can be adjusted with
+`WEB_CONCURRENCY`, `WEB_THREADS`, and `WEB_TIMEOUT`.
+
+The deployment platform can use these endpoints:
+
+- `/health` for liveness checks.
+- `/ready` for readiness checks.
+
 ## Safety
 
 This widget provides forecast guidance only. Always verify conditions on site
 and use your own judgment before entering the water.
-

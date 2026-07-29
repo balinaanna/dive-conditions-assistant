@@ -1,10 +1,13 @@
-from flask import Flask, jsonify, render_template, request
+import os
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
-from conditions_service import build_conditions_response, create_session
+
+from flask import Flask, jsonify, render_template, request
+
 from chs_currents import fetch_chs_time_series, format_current_event
+from conditions_service import build_conditions_response, create_session
 from config import LOCATIONS
 from weather import fetch_temperature_summary
-from datetime import datetime, timedelta, timezone
 
 app = Flask(__name__)
 
@@ -18,6 +21,17 @@ FIRST_NARROWS_STATION = {
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok"})
+
+
+@app.route("/ready")
+def ready():
+    return jsonify({"status": "ready"})
+
 
 @app.route("/api/chs-current-speed")
 def get_chs_current_speed():
@@ -128,4 +142,8 @@ def get_temperatures():
     })
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001, debug=True)
+    app.run(
+        host=os.getenv("HOST", "127.0.0.1"),
+        port=int(os.getenv("PORT", "5001")),
+        debug=os.getenv("FLASK_DEBUG", "").lower() in {"1", "true", "yes"},
+    )
