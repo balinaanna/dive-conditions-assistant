@@ -68,6 +68,17 @@ The server cache is process-local. Multiple Gunicorn workers do not share
 entries, and a restart clears the cache. Monitor upstream request volume after
 launch; use a shared cache service if traffic outgrows this design.
 
+## Operational logs
+
+Every response includes an `X-Request-ID` header. The server writes one
+structured JSON completion record containing the request ID, route, status,
+duration, and cache outcome. Provider failures write a separate record with the
+provider name and exception type; response bodies, forecast payloads, and query
+parameters are not logged.
+
+Use the request ID to correlate a browser or API error with its server log
+record.
+
 ## Health checks
 
 Configure the hosting platform to call:

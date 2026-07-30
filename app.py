@@ -1,9 +1,12 @@
+import json
 import os
+import time
+import uuid
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import requests
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, g, jsonify, render_template, request
 
 from chs_currents import fetch_chs_time_series, format_current_event
 from conditions_service import build_conditions_response, create_session
@@ -26,8 +29,39 @@ FORECAST_RESPONSE_CACHE = TTLCache(
 )
 
 
+@app.before_request
+def start_request_observation():
+    g.request_id = uuid.uuid4().hex
+    g.request_started_at = time.perf_counter()
+
+
+@app.after_request
+def finish_request_observation(response):
+    request_id = getattr(g, "request_id", uuid.uuid4().hex)
+    started_at = getattr(g, "request_started_at", time.perf_counter())
+    duration_ms = round((time.perf_counter() - started_at) * 1000, 2)
+    cache_status = response.headers.get("X-Cache")
+
+    response.headers["X-Request-ID"] = request_id
+    app.logger.info(json.dumps({
+        "event": "request_completed",
+        "request_id": request_id,
+        "method": request.method,
+        "path": request.path,
+        "status": response.status_code,
+        "duration_ms": duration_ms,
+        "cache": cache_status,
+    }, separators=(",", ":")))
+    return response
+
+
 def upstream_unavailable(source, error):
-    app.logger.warning("%s request failed: %s", source, error)
+    app.logger.warning(json.dumps({
+        "event": "provider_request_failed",
+        "request_id": getattr(g, "request_id", None),
+        "source": source,
+        "error_type": type(error).__name__,
+    }, separators=(",", ":")))
     return jsonify({
         "error": f"{source} data is temporarily unavailable.",
     }), 502

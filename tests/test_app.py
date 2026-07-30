@@ -1,3 +1,4 @@
+import json
 import unittest
 from datetime import datetime, timedelta
 from unittest.mock import patch
@@ -27,6 +28,21 @@ class AppRouteTests(unittest.TestCase):
         ready = self.client.get("/ready")
         self.assertEqual(ready.status_code, 200)
         self.assertEqual(ready.get_json(), {"status": "ready"})
+
+    def test_responses_include_request_ids_and_structured_logs(self):
+        with self.assertLogs(app_module.app.logger, level="INFO") as logs:
+            response = self.client.get("/health")
+
+        request_id = response.headers["X-Request-ID"]
+        self.assertEqual(len(request_id), 32)
+        record = json.loads(logs.output[-1].split(":", 2)[2])
+        self.assertEqual(record["event"], "request_completed")
+        self.assertEqual(record["request_id"], request_id)
+        self.assertEqual(record["method"], "GET")
+        self.assertEqual(record["path"], "/health")
+        self.assertEqual(record["status"], 200)
+        self.assertIsInstance(record["duration_ms"], (int, float))
+        self.assertIsNone(record["cache"])
 
     def test_forecast_routes_reject_invalid_dates(self):
         paths = (
@@ -204,6 +220,32 @@ class AppRouteTests(unittest.TestCase):
                         ),
                     },
                 )
+                self.assertEqual(len(response.headers["X-Request-ID"]), 32)
+
+    def test_provider_failure_log_contains_safe_diagnostic_fields(self):
+        with patch(
+            "app.fetch_temperature_summary",
+            side_effect=requests.Timeout("secret provider details"),
+        ), self.assertLogs(app_module.app.logger, level="WARNING") as logs:
+            response = self.client.get(
+                "/api/temperatures"
+                f"?location=whytecliff&date={self.today_string}",
+            )
+
+        failure_record = next(
+            json.loads(line.split(":", 2)[2])
+            for line in logs.output
+            if "provider_request_failed" in line
+        )
+        self.assertEqual(response.status_code, 502)
+        self.assertEqual(failure_record["event"], "provider_request_failed")
+        self.assertEqual(failure_record["source"], "Temperature")
+        self.assertEqual(failure_record["error_type"], "Timeout")
+        self.assertEqual(
+            failure_record["request_id"],
+            response.headers["X-Request-ID"],
+        )
+        self.assertNotIn("secret provider details", logs.output[0])
 
 
 if __name__ == "__main__":
