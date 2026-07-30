@@ -9,9 +9,6 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function createEngine() {
 const SUITABILITY_SAMPLE_STEP_HOURS = 0.25;
 
-const IDEAL_CURRENT_THRESHOLD_KN = 0.5;
-const GOOD_CURRENT_THRESHOLD_KN = 1.5;
-
 function timeToDecimalHour(timeString) {
   const hour = parseInt(timeString.slice(11, 13));
   const minute = parseInt(timeString.slice(14, 16));
@@ -77,12 +74,6 @@ function predominantCurrentRisk(speeds, fallbackRisk) {
   if (counts.high >= halfWindow) return 'high';
   if (counts.high + counts.medium >= halfWindow) return 'medium';
   return 'low';
-}
-
-function currentRangeClass(absSpeed) {
-  if (absSpeed <= IDEAL_CURRENT_THRESHOLD_KN) return 'ideal';
-  if (absSpeed <= GOOD_CURRENT_THRESHOLD_KN) return 'good';
-  return 'bad';
 }
 
 function getSlackPoints(currentSpeedData) {
@@ -294,7 +285,6 @@ function buildSuitabilityWindows(input) {
 return {
   SUITABILITY_SAMPLE_STEP_HOURS,
   buildSuitabilityWindows,
-  currentRangeClass,
   currentRiskForSpeed,
   getSlackPoints,
   hoursFromChartStart,

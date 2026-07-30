@@ -67,16 +67,6 @@
   --shadow-widget: 0 6px 24px rgba(3, 23, 22, 0.1);
   --shadow-selected: 0 8px 18px rgba(39, 77, 96, 0.22);
 
-  --current-flood: #b98b5a;
-  --current-flood-fill: rgba(185, 139, 90, 0.25);
-
-  --current-ebb: #4f83b6;
-  --current-ebb-fill: rgba(79, 131, 182, 0.25);
-
-  --current-range-ideal: rgba(39, 77, 96, 0.12);
-  --current-range-good: rgba(245, 158, 11, 0.14);
-  --current-range-bad: rgba(239, 68, 68, 0.12);
-
   /* --chart-night: rgba(148, 163, 184, 0.5); */
   --chart-night: rgba(108, 124, 142, 0.3);
 
