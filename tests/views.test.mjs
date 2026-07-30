@@ -104,6 +104,8 @@ test('loaded details shell connects both bottom tabs to their panels', () => {
   assert.match(html, /onclick="setDetailsView\('selected'\)"/);
   assert.match(html, /onclick="setDetailsView\('forecast'\)"/);
   assert.match(html, /id="selectedHourDetails"/);
+  assert.match(html, /class="selected-window-body"/);
+  assert.match(html, /Always verify conditions on site/);
   assert.match(html, /id="mainPanelContent"/);
 });
 

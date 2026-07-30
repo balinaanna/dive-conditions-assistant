@@ -206,7 +206,13 @@
       <div class="section details-view-section">
         <div class="details-view-content">
           <div class="details-view-panel active" data-view="selected">
-            <div id="selectedHourDetails" class="selected-window-frame"></div>
+            <div class="selected-window-frame">
+              <div
+                id="selectedHourDetails"
+                class="selected-window-body"
+              ></div>
+              ${renderSafetyDisclaimer()}
+            </div>
           </div>
           <div
             class="details-view-panel details-view-panel-forecast"

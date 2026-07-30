@@ -114,10 +114,6 @@ function renderChartLegend() {
   return window.DiveViews.renderChartLegend();
 }
 
-function renderSafetyDisclaimer() {
-  return window.DiveViews.renderSafetyDisclaimer();
-}
-
 function selectedLocationName() {
   return 'Whytecliff Park';
 }
@@ -259,10 +255,7 @@ function renderSelectedHourPanel() {
   const panel = document.getElementById('selectedHourDetails');
   if (!panel) return;
 
-  panel.innerHTML = `
-    ${renderSelectedHourDetails(selectedHourIndex)}
-    ${renderSafetyDisclaimer()}
-  `;
+  panel.innerHTML = renderSelectedHourDetails(selectedHourIndex);
 }
 
 let mainTideChart = null;
