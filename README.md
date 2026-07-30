@@ -73,3 +73,7 @@ The deployment platform can use these endpoints:
 
 This widget provides forecast guidance only. Always verify conditions on site
 and use your own judgment before entering the water.
+
+## License
+
+This project is available under the [MIT License](LICENSE).
