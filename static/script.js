@@ -24,6 +24,12 @@ const {
   formatTime12,
 } = window.ConditionFormatters;
 
+const {
+  numericValues,
+  precipitationSummary,
+  range: metricRange,
+} = window.ConditionMetrics;
+
 const CSS = getComputedStyle(document.documentElement);
 
 const COLORS = {
@@ -349,20 +355,19 @@ function renderSelectedHourDetails(index) {
   const windowSpeed = selectedSuitabilityWindow?.currentSpeed;
   const windowWind = selectedSuitabilityWindow?.wind;
   const windowRain = selectedSuitabilityWindow?.rain;
-  const windowCurrentSpeeds = (selectedSuitabilityWindow?.samples || [])
-    .map((sample) => sample.currentSpeed)
-    .filter((speed) => speed !== null && speed !== undefined)
-    .map((speed) => Math.abs(speed));
-  const minimumWindowSpeed = windowCurrentSpeeds.length
-    ? Math.min(...windowCurrentSpeeds)
-    : windowSpeed === null || windowSpeed === undefined
+  const windowCurrentSpeeds = numericValues(
+    selectedSuitabilityWindow?.samples,
+    'currentSpeed',
+    { absolute: true },
+  );
+  const currentFallback =
+    windowSpeed === null || windowSpeed === undefined
       ? null
       : Math.abs(windowSpeed);
-  const maximumWindowSpeed = windowCurrentSpeeds.length
-    ? Math.max(...windowCurrentSpeeds)
-    : windowSpeed === null || windowSpeed === undefined
-      ? null
-      : Math.abs(windowSpeed);
+  const {
+    minimum: minimumWindowSpeed,
+    maximum: maximumWindowSpeed,
+  } = metricRange(windowCurrentSpeeds, currentFallback);
   const currentValue =
     minimumWindowSpeed === null || maximumWindowSpeed === null
       ? 'Unavailable'
@@ -375,16 +380,14 @@ function renderSelectedHourDetails(index) {
     windowCurrentSpeeds,
     maximumWindowSpeed === null ? 'unknown' : peakCurrentRisk,
   );
-  const windowWindSpeeds =
-    selectedSuitabilityWindow?.samples
-      ?.map((sample) => sample.wind)
-      .filter((wind) => wind !== null && wind !== undefined) || [];
-  const minimumWindowWind = windowWindSpeeds.length
-    ? Math.min(...windowWindSpeeds)
-    : (windowWind ?? null);
-  const maximumWindowWind = windowWindSpeeds.length
-    ? Math.max(...windowWindSpeeds)
-    : (windowWind ?? null);
+  const windowWindSpeeds = numericValues(
+    selectedSuitabilityWindow?.samples,
+    'wind',
+  );
+  const {
+    minimum: minimumWindowWind,
+    maximum: maximumWindowWind,
+  } = metricRange(windowWindSpeeds, windowWind ?? null);
   const formattedWindValue =
     minimumWindowWind === null || maximumWindowWind === null
       ? hour.wind_kmh
@@ -396,22 +399,15 @@ function renderSelectedHourDetails(index) {
     maximumWindowWind === null
       ? windRiskForSpeed(hour.wind_kmh)
       : windRiskForSpeed(maximumWindowWind);
-  const windowRainSamples =
-    selectedSuitabilityWindow?.samples?.filter(
-      (sample) => sample.rain !== null && sample.rain !== undefined,
-    ) || [];
-  const totalWindowRain = windowRainSamples.length
-    ? windowRainSamples.reduce(
-        (total, rain) => total + rain.rain * SUITABILITY_SAMPLE_STEP_HOURS,
-        0,
-      )
-    : null;
-  const peakWindowRainSample = windowRainSamples.reduce(
-    (peak, sample) =>
-      peak === null || sample.rain > peak.rain ? sample : peak,
-    null,
+  const {
+    total: totalWindowRain,
+    peak: maximumWindowRain,
+    peakSample: peakWindowRainSample,
+  } = precipitationSummary(
+    selectedSuitabilityWindow?.samples,
+    SUITABILITY_SAMPLE_STEP_HOURS,
+    windowRain ?? null,
   );
-  const maximumWindowRain = peakWindowRainSample?.rain ?? windowRain ?? null;
   const rainValue =
     totalWindowRain === null
       ? hour.precipitation_mm
