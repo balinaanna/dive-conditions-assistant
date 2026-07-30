@@ -1,5 +1,7 @@
 # Dive Conditions Widget
 
+[![CI](https://github.com/balinaanna/dive-conditions-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/balinaanna/dive-conditions-assistant/actions/workflows/ci.yml)
+
 Dive Conditions Widget is a data-driven web application developed with
 AI-assisted engineering tools, including OpenAI Codex and Claude Code. It
 combines weather, tide, current, daylight, and site-specific data to generate
