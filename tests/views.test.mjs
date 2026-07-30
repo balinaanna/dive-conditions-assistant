@@ -106,3 +106,20 @@ test('loaded details shell connects both bottom tabs to their panels', () => {
   assert.match(html, /id="selectedHourDetails"/);
   assert.match(html, /id="mainPanelContent"/);
 });
+
+test('loaded assessment shell includes header, controls, and chart target', () => {
+  const html = views.renderLoadedAssessmentShell({
+    location: 'Whytecliff Park',
+    waterTemperature: '18.5°C',
+    dateSelector: '<div data-test="dates"></div>',
+    legend: '<div data-test="legend"></div>',
+    detailsShell: '<div data-test="details"></div>',
+  });
+
+  assert.match(html, /Whytecliff Park, BC, Canada/);
+  assert.match(html, /18.5°C/);
+  assert.match(html, /id="mainTideChart"/);
+  assert.match(html, /data-test="dates"/);
+  assert.match(html, /data-test="legend"/);
+  assert.match(html, /data-test="details"/);
+});
