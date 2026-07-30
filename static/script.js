@@ -248,6 +248,7 @@ function selectSuitabilityWindow(window, preferredTime = null) {
     : window;
 
   selectedHourIndex = nearestHourIndex(sampleTime);
+  setDetailsView('selected');
   renderSelectedHourPanel();
 }
 
