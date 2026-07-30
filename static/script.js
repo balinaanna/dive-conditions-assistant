@@ -162,35 +162,6 @@ function selectForecastDate(forecastDate) {
   loadConditions(selectedLocationId, selectedForecastDate);
 }
 
-function logSuitabilityWindowCurrentSpeeds(windows) {
-  console.group('Suitability windows — current speeds');
-
-  windows.forEach((window) => {
-    const statusLabel =
-      window.status === 'Ok' ? 'Use caution' : window.status;
-
-    console.groupCollapsed(
-      `${formatSuitabilityWindow(window)} · ${statusLabel}`,
-    );
-    console.table(
-      window.samples.map((sample) => ({
-        time: formatDecimalTime(sample.time),
-        current_speed_kn:
-          sample.currentSpeed === null || sample.currentSpeed === undefined
-            ? 'Unavailable'
-            : Number(sample.currentSpeed.toFixed(3)),
-        absolute_speed_kn:
-          sample.currentSpeed === null || sample.currentSpeed === undefined
-            ? 'Unavailable'
-            : Number(Math.abs(sample.currentSpeed).toFixed(3)),
-      })),
-    );
-    console.groupEnd();
-  });
-
-  console.groupEnd();
-}
-
 function getCurrentHourIndex(hours) {
   const now = new Date();
   const currentHour = now.getHours();
@@ -606,7 +577,6 @@ function loadConditions(locationId, forecastDate = selectedForecastDate) {
         });
 
       const initialWindows = buildSuitabilityWindows(hours);
-      logSuitabilityWindowCurrentSpeeds(initialWindows);
       const now = isTodaySelected() ? getCurrentDecimalHour() : null;
       const initialWindow = isTodaySelected()
         ? initialWindows.find(
