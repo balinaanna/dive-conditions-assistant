@@ -75,7 +75,6 @@ let selectedLocationId = 'whytecliff';
 let selectedHourIndex = 0;
 let selectedSuitabilityWindow = null;
 let activeForecastChart = null;
-let activeDetailsView = 'selected';
 
 let chsCurrentSpeedData = null;
 
@@ -503,15 +502,15 @@ function renderMainPanel() {
   }
 
   panel.innerHTML =
-    activeDetailsView === 'forecast' ? renderForecastCharts() : '';
+    widgetController.activeView === 'forecast' ? renderForecastCharts() : '';
 
-  if (activeDetailsView === 'forecast') {
+  if (widgetController.activeView === 'forecast') {
     showForecastChart('wind');
   }
 }
 
 function setDetailsView(viewName) {
-  activeDetailsView = viewName;
+  if (!widgetController.selectView(viewName)) return;
 
   document.querySelectorAll('.bottom-view-tab').forEach((button) => {
     const isActive = button.dataset.view === viewName;
@@ -570,7 +569,7 @@ function loadConditions(locationId, forecastDate = selectedForecastDate) {
   selectedLocationId = locationId;
   selectedForecastDate = forecastDate;
   selectedSuitabilityWindow = null;
-  activeDetailsView = 'selected';
+  widgetController.selectView('selected');
   const requestId = widgetController.beginRequest();
   const cached = cachedForecastBundle(locationId, forecastDate);
 

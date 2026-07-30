@@ -38,3 +38,13 @@ test('only the latest request remains current', () => {
   assert.equal(controller.isCurrentRequest(first), false);
   assert.equal(controller.isCurrentRequest(second), true);
 });
+
+test('tracks only supported bottom-panel views', () => {
+  const controller = createWidgetController();
+
+  assert.equal(controller.activeView, 'selected');
+  assert.equal(controller.selectView('forecast'), true);
+  assert.equal(controller.activeView, 'forecast');
+  assert.equal(controller.selectView('unknown'), false);
+  assert.equal(controller.activeView, 'forecast');
+});

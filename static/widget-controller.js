@@ -19,6 +19,7 @@
   } = {}) {
     let selectedDate = initialDate;
     let latestRequestId = 0;
+    let activeView = 'selected';
 
     function beginRequest() {
       latestRequestId += 1;
@@ -33,6 +34,12 @@
       const changed = date !== selectedDate;
       selectedDate = date;
       return changed;
+    }
+
+    function selectView(viewName) {
+      if (!['selected', 'forecast'].includes(viewName)) return false;
+      activeView = viewName;
+      return true;
     }
 
     function forecastDateOptions(today = new Date()) {
@@ -56,6 +63,9 @@
     return {
       beginRequest,
       forecastDateOptions,
+      get activeView() {
+        return activeView;
+      },
       get locationId() {
         return locationId;
       },
@@ -64,6 +74,7 @@
       },
       isCurrentRequest,
       selectDate,
+      selectView,
     };
   }
 
