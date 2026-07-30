@@ -76,6 +76,7 @@ the eventual website embed independent of an AI service.
   scoring, window generation, charts, formatting, caching, and UI composition.
 - Request sequencing prevents stale responses from replacing a newer date.
 - Shared in-flight requests avoid duplicate API calls.
+- Bounded server-side TTL caching reduces duplicate forecast-provider traffic.
 - Progressive loading lets independent temperature and conditions data render
   as soon as each endpoint responds.
 - Gunicorn production configuration plus liveness and readiness endpoints.
@@ -99,6 +100,7 @@ station. These limitations are documented in
 | --- | --- |
 | `app.py` | Flask routes, validation, and API responses |
 | `conditions_service.py` | Forecast-session orchestration |
+| `response_cache.py` | Thread-safe response caching and request coalescing |
 | `weather.py`, `tides.py`, `chs_currents.py` | External data retrieval and normalization |
 | `static/assessment-engine.js` | Deterministic scoring and window generation |
 | `static/forecast-data.js` | API access, caching, and shared requests |

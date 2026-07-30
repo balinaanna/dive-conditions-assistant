@@ -33,6 +33,8 @@ The repository contains a `Procfile` with the same start command.
 | `WEB_CONCURRENCY` | `2` | Gunicorn worker processes |
 | `WEB_THREADS` | `4` | Threads per worker |
 | `WEB_TIMEOUT` | `45` | Request timeout in seconds |
+| `SERVER_CACHE_TTL_SECONDS` | `900` | Successful API response lifetime |
+| `SERVER_CACHE_MAX_ENTRIES` | `64` | Maximum cached responses per worker |
 
 Do not enable `FLASK_DEBUG` in production.
 
@@ -57,10 +59,14 @@ application itself is healthy.
 - Conditions and current data are cached in each browser for 15 minutes.
 - Temperature data is cached in the browser for the current page session.
 - Simultaneous browser requests for the same date share one in-flight request.
-- The server does not currently have a shared response cache.
+- Successful normalized API responses are cached for 15 minutes in each server
+  process.
+- Simultaneous requests handled by one process share one provider request.
+- Failed provider requests are not cached.
 
-Because each browser can trigger server-side provider calls, monitor upstream
-request volume after launch and add a server-side cache if usage grows.
+The server cache is process-local. Multiple Gunicorn workers do not share
+entries, and a restart clears the cache. Monitor upstream request volume after
+launch; use a shared cache service if traffic outgrows this design.
 
 ## Health checks
 

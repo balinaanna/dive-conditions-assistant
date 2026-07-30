@@ -10,6 +10,7 @@ import app as app_module
 class AppRouteTests(unittest.TestCase):
     def setUp(self):
         app_module.app.config.update(TESTING=True)
+        app_module.FORECAST_RESPONSE_CACHE.clear()
         self.client = app_module.app.test_client()
         self.today = datetime.now(app_module.LOCAL_TIMEZONE).date()
         self.today_string = self.today.isoformat()
@@ -95,6 +96,7 @@ class AppRouteTests(unittest.TestCase):
         self.assertEqual(payload["source"], "CHS")
         self.assertEqual(payload["unit"], "kn")
         self.assertEqual(payload["points"][0]["speed"], 0)
+        self.assertEqual(response.headers["X-Cache"], "MISS")
 
     @patch("app.build_conditions_response")
     @patch("app.create_session")
@@ -116,6 +118,7 @@ class AppRouteTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_json(), build_response.return_value)
+        self.assertEqual(response.headers["X-Cache"], "MISS")
         create_session.assert_called_once_with(
             "whytecliff",
             self.today_string,
@@ -137,6 +140,33 @@ class AppRouteTests(unittest.TestCase):
         payload = response.get_json()
         self.assertEqual(payload["location"], "Whytecliff Park")
         self.assertEqual(payload["water_temp_c"], 12.4)
+        self.assertEqual(response.headers["X-Cache"], "MISS")
+
+    @patch("app.build_conditions_response")
+    @patch("app.create_session")
+    def test_successful_api_response_is_cached(
+        self,
+        create_session,
+        build_response,
+    ):
+        create_session.return_value = {"location": "Whytecliff Park"}
+        build_response.return_value = {
+            "location": "Whytecliff Park",
+            "daily": {"date": self.today_string},
+        }
+        path = (
+            "/api/conditions"
+            f"?location=whytecliff&date={self.today_string}"
+        )
+
+        first = self.client.get(path)
+        second = self.client.get(path)
+
+        self.assertEqual(first.headers["X-Cache"], "MISS")
+        self.assertEqual(second.headers["X-Cache"], "HIT")
+        self.assertEqual(first.get_json(), second.get_json())
+        create_session.assert_called_once()
+        build_response.assert_called_once()
 
     def test_provider_timeouts_return_structured_502_responses(self):
         cases = (
