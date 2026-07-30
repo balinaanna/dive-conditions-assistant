@@ -7,6 +7,8 @@ A deterministic decision-support widget that combines tide, current, weather,
 and daylight forecasts to help freedivers compare conditions throughout the
 day.
 
+[**View the live demo**](https://dive-conditions-assistant.onrender.com)
+
 The current version is configured for **Whytecliff Park, BC, Canada** and
 provides guidance for today and the following six days.
 
@@ -175,6 +177,11 @@ Deployment platforms can monitor:
 
 - `/health` for liveness.
 - `/ready` for readiness.
+
+The public demo is hosted on Render's free tier at
+[dive-conditions-assistant.onrender.com](https://dive-conditions-assistant.onrender.com).
+The service can spin down while inactive, so its first response after a quiet
+period may take approximately 50 seconds.
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for the provider-neutral production
 checklist, external API requirements, Wix iframe guidance, smoke tests,
