@@ -161,6 +161,10 @@ Deployment platforms can monitor:
 - `/health` for liveness.
 - `/ready` for readiness.
 
+See [DEPLOYMENT.md](DEPLOYMENT.md) for the provider-neutral production
+checklist, external API requirements, Wix iframe guidance, smoke tests,
+monitoring, and rollback procedure.
+
 ## AI-assisted development
 
 This project was developed with AI-assisted engineering tools, including
