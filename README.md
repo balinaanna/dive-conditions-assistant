@@ -81,6 +81,8 @@ the eventual website embed independent of an AI service.
   outcomes without logging forecast payloads.
 - Content, permissions, referrer, and MIME-sniffing security policies preserve
   intentional iframe embedding while reducing common browser risks.
+- Pinned Bootstrap and Chart.js assets are served locally, removing a
+  third-party browser runtime dependency while retaining upstream MIT notices.
 - Progressive loading lets independent temperature and conditions data render
   as soon as each endpoint responds.
 - Gunicorn production configuration plus liveness and readiness endpoints.
@@ -110,6 +112,7 @@ station. These limitations are documented in
 | `static/forecast-data.js` | API access, caching, and shared requests |
 | `static/chart-renderer.js`, `static/chart-plugins.js` | Tide and forecast charts |
 | `static/views.js`, `static/widget-controller.js` | UI composition and state |
+| `static/vendor/` | Pinned browser libraries and their license notices |
 | `tests/` | Node test suite for browser-side modules |
 
 ## Local development

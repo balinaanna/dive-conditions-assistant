@@ -82,10 +82,11 @@ record.
 
 ## Browser security policy
 
-The application sends a Content Security Policy that limits scripts and styles
-to the application itself and jsDelivr, blocks browser features the widget does
-not use, and disables MIME sniffing. It intentionally does not send
-`X-Frame-Options`, because that legacy header would prevent the Wix embed.
+The application serves its pinned Bootstrap and Chart.js dependencies locally.
+Its Content Security Policy limits scripts and styles to the application
+itself, blocks browser features the widget does not use, and disables MIME
+sniffing. It intentionally does not send `X-Frame-Options`, because that legacy
+header would prevent the Wix embed.
 
 Before public launch, set `WIDGET_FRAME_ANCESTORS` to the exact production and
 preview origins that may embed the widget. The value follows CSP

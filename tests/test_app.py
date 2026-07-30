@@ -1,6 +1,7 @@
 import json
 import unittest
 from datetime import datetime, timedelta
+from pathlib import Path
 from unittest.mock import patch
 
 import requests
@@ -20,6 +21,38 @@ class AppRouteTests(unittest.TestCase):
         page = self.client.get("/")
         self.assertEqual(page.status_code, 200)
         self.assertIn(b"conditionsSection", page.data)
+        self.assertNotIn(b"cdn.jsdelivr.net", page.data)
+        self.assertIn(
+            b"/static/vendor/bootstrap/bootstrap.min.css",
+            page.data,
+        )
+        self.assertIn(
+            b"/static/vendor/chart.js/chart.umd.min.js",
+            page.data,
+        )
+        self.assertIn(
+            (
+                b"/static/vendor/chartjs-adapter-date-fns/"
+                b"chartjs-adapter-date-fns.bundle.min.js"
+            ),
+            page.data,
+        )
+
+        project_root = Path(app_module.app.root_path)
+        vendor_files = (
+            "static/vendor/bootstrap/bootstrap.min.css",
+            "static/vendor/bootstrap/LICENSE",
+            "static/vendor/chart.js/chart.umd.min.js",
+            "static/vendor/chart.js/LICENSE.md",
+            (
+                "static/vendor/chartjs-adapter-date-fns/"
+                "chartjs-adapter-date-fns.bundle.min.js"
+            ),
+            "static/vendor/chartjs-adapter-date-fns/LICENSE.md",
+        )
+        for relative_path in vendor_files:
+            with self.subTest(relative_path=relative_path):
+                self.assertTrue((project_root / relative_path).is_file())
 
         health = self.client.get("/health")
         self.assertEqual(health.status_code, 200)
@@ -49,7 +82,8 @@ class AppRouteTests(unittest.TestCase):
 
         policy = response.headers["Content-Security-Policy"]
         self.assertIn("default-src 'self'", policy)
-        self.assertIn("script-src 'self' https://cdn.jsdelivr.net", policy)
+        self.assertIn("script-src 'self'", policy)
+        self.assertNotIn("cdn.jsdelivr.net", policy)
         self.assertIn("frame-ancestors *", policy)
         self.assertEqual(
             response.headers["Permissions-Policy"],
