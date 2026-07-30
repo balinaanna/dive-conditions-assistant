@@ -123,3 +123,19 @@ test('loaded assessment shell includes header, controls, and chart target', () =
   assert.match(html, /data-test="legend"/);
   assert.match(html, /data-test="details"/);
 });
+
+test('loading assessment shell composes every fixed-size placeholder', () => {
+  const html = views.renderLoadingAssessmentShell({
+    location: 'Whytecliff Park',
+    dateSelector: '<div data-test="dates"></div>',
+    legend: '<div data-test="legend"></div>',
+    loadingChart: '<div data-test="chart"></div>',
+    loadingDetails: '<div data-test="details"></div>',
+  });
+
+  assert.match(html, /Whytecliff Park, BC, Canada/);
+  assert.match(html, /id="waterTemperatureValue"/);
+  for (const part of ['dates', 'legend', 'chart', 'details']) {
+    assert.match(html, new RegExp(`data-test="${part}"`));
+  }
+});

@@ -294,11 +294,66 @@
     `;
   }
 
+  function renderLoadingAssessmentShell({
+    dateSelector,
+    legend,
+    loadingChart,
+    loadingDetails,
+    location,
+  }) {
+    return `
+      <div class="section mt-2 timing-chart-section">
+        <div class="row g-2 assessment-header-row">
+          <div class="col assessment-location-column">
+            <div class="assessment-context">
+              <div class="assessment-context-label">
+                Dive conditions assessment for
+              </div>
+              <h1 class="dive-site">${location}, BC, Canada</h1>
+            </div>
+          </div>
+          <div class="col-auto assessment-temperature-column">
+            <div class="facts">
+              <div class="fact">
+                <div class="fact-label">Water</div>
+                <div
+                  id="waterTemperatureValue"
+                  class="fact-value temperature-value skeleton-line skeleton-fact-value"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <strong class="timing-header">
+          When do conditions look most suitable?
+        </strong>
+        <div class="usage-instruction date-instruction">
+          <strong>Select a date.</strong>
+          Forecast is available for 7 days, starting today.
+        </div>
+        ${dateSelector}
+        <div class="row g-2">
+          <div class="col-12">
+            <span class="usage-instruction chart-instruction">
+              <strong>
+                Click or tap a colored time window to view its conditions below.
+              </strong>
+            </span>
+          </div>
+          <div class="col-12 chart-legend-column">${legend}</div>
+        </div>
+        ${loadingChart}
+      </div>
+      ${loadingDetails}
+    `;
+  }
+
   return {
     renderChartLegend,
     renderForecastDateSelector,
     renderForecastPanel,
     renderLoadingChart,
+    renderLoadingAssessmentShell,
     renderLoadingDetails,
     renderLoadedDetailsShell,
     renderLoadedAssessmentShell,
