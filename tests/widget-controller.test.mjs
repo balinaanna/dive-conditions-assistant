@@ -29,3 +29,12 @@ test('date selection reports whether state actually changed', () => {
   assert.equal(controller.selectDate('2026-07-30'), true);
   assert.equal(controller.selectedDate, '2026-07-30');
 });
+
+test('only the latest request remains current', () => {
+  const controller = createWidgetController();
+  const first = controller.beginRequest();
+  const second = controller.beginRequest();
+
+  assert.equal(controller.isCurrentRequest(first), false);
+  assert.equal(controller.isCurrentRequest(second), true);
+});

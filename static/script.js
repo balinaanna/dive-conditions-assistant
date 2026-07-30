@@ -76,7 +76,6 @@ let selectedHourIndex = 0;
 let selectedSuitabilityWindow = null;
 let activeForecastChart = null;
 let activeDetailsView = 'selected';
-let conditionsRequestId = 0;
 
 let chsCurrentSpeedData = null;
 
@@ -572,14 +571,14 @@ function loadConditions(locationId, forecastDate = selectedForecastDate) {
   selectedForecastDate = forecastDate;
   selectedSuitabilityWindow = null;
   activeDetailsView = 'selected';
-  const requestId = ++conditionsRequestId;
+  const requestId = widgetController.beginRequest();
   const cached = cachedForecastBundle(locationId, forecastDate);
 
   if (!cached) {
     renderConditionsLoadingState();
     loadTemperatureSummary(locationId, forecastDate)
       .then((temperatures) => {
-        if (requestId !== conditionsRequestId) return;
+        if (!widgetController.isCurrentRequest(requestId)) return;
         renderTemperatures(temperatures);
       })
       .catch((error) => {
@@ -589,7 +588,7 @@ function loadConditions(locationId, forecastDate = selectedForecastDate) {
 
   loadForecastBundle(locationId, forecastDate)
     .then((bundle) => {
-      if (requestId !== conditionsRequestId) return;
+      if (!widgetController.isCurrentRequest(requestId)) return;
 
       const data = bundle.conditions;
       const hours = data.hourly_forecast;
@@ -632,7 +631,7 @@ function loadConditions(locationId, forecastDate = selectedForecastDate) {
       }, 0);
     })
     .catch((error) => {
-      if (requestId !== conditionsRequestId) return;
+      if (!widgetController.isCurrentRequest(requestId)) return;
 
       console.error(error);
       renderConditionsErrorState();

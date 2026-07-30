@@ -18,6 +18,16 @@
     locationId = 'whytecliff',
   } = {}) {
     let selectedDate = initialDate;
+    let latestRequestId = 0;
+
+    function beginRequest() {
+      latestRequestId += 1;
+      return latestRequestId;
+    }
+
+    function isCurrentRequest(requestId) {
+      return requestId === latestRequestId;
+    }
 
     function selectDate(date) {
       const changed = date !== selectedDate;
@@ -44,6 +54,7 @@
     }
 
     return {
+      beginRequest,
       forecastDateOptions,
       get locationId() {
         return locationId;
@@ -51,6 +62,7 @@
       get selectedDate() {
         return selectedDate;
       },
+      isCurrentRequest,
       selectDate,
     };
   }
