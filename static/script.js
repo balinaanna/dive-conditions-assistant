@@ -16,6 +16,14 @@ const {
   loadTemperatureSummary,
 } = window.ForecastData.createForecastDataService();
 
+const {
+  displayValue,
+  formatDecimalTime,
+  formatHour12,
+  formatSuitabilityWindow,
+  formatTime12,
+} = window.ConditionFormatters;
+
 const CSS = getComputedStyle(document.documentElement);
 
 const COLORS = {
@@ -172,48 +180,6 @@ function selectForecastDate(forecastDate) {
   loadConditions(selectedLocationId, selectedForecastDate);
 }
 
-function formatTime12(timeString) {
-  const hour = parseInt(timeString.slice(11, 13));
-  const minute = timeString.slice(14, 16);
-  const period = hour >= 12 ? 'PM' : 'AM';
-
-  let displayHour = hour % 12;
-
-  if (displayHour === 0) {
-    displayHour = 12;
-  }
-
-  return `${displayHour}:${minute} ${period}`;
-}
-
-function formatHour12(timeString) {
-  const hour = parseInt(timeString.slice(11, 13));
-  const period = hour >= 12 ? 'PM' : 'AM';
-
-  let displayHour = hour % 12;
-
-  if (displayHour === 0) {
-    displayHour = 12;
-  }
-
-  return `${displayHour}${period}`;
-}
-
-function formatDecimalTime(value) {
-  const totalMinutes = Math.round(value * 60);
-  const hour = ((Math.floor(totalMinutes / 60) % 24) + 24) % 24;
-  const minute = totalMinutes % 60;
-  const period = hour >= 12 ? 'PM' : 'AM';
-  const displayHour = hour % 12 || 12;
-
-  return `${displayHour}:${String(minute).padStart(2, '0')} ${period}`;
-}
-
-function formatSuitabilityWindow(window) {
-  if (!window) return '';
-  return `${formatDecimalTime(window.start)} – ${formatDecimalTime(window.end)}`;
-}
-
 function logSuitabilityWindowCurrentSpeeds(windows) {
   console.group('Suitability windows — current speeds');
 
@@ -295,14 +261,6 @@ window.ChartPlugins.registerDiveChartPlugins({
 
 let selectedHours = [];
 let appData = null;
-
-function displayValue(value, unit = '') {
-  if (value === null || value === undefined) {
-    return 'N/A';
-  }
-
-  return `${value}${unit}`;
-}
 
 function selectHour(index) {
   selectedHourIndex = index;
