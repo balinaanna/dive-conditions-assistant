@@ -95,3 +95,14 @@ test('forecast panel exposes all three chart tabs and a canvas', () => {
   assert.match(html, /showForecastChart\('air'\)/);
   assert.match(html, /id="forecastChart"/);
 });
+
+test('loaded details shell connects both bottom tabs to their panels', () => {
+  const html = views.renderLoadedDetailsShell();
+
+  assert.match(html, /data-view="selected"/);
+  assert.match(html, /data-view="forecast"/);
+  assert.match(html, /onclick="setDetailsView\('selected'\)"/);
+  assert.match(html, /onclick="setDetailsView\('forecast'\)"/);
+  assert.match(html, /id="selectedHourDetails"/);
+  assert.match(html, /id="mainPanelContent"/);
+});

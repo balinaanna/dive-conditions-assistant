@@ -201,12 +201,53 @@
     `;
   }
 
+  function renderLoadedDetailsShell() {
+    return `
+      <div class="section details-view-section">
+        <div class="details-view-content">
+          <div class="details-view-panel active" data-view="selected">
+            <div id="selectedHourDetails" class="selected-window-frame"></div>
+          </div>
+          <div
+            class="details-view-panel details-view-panel-forecast"
+            data-view="forecast"
+          >
+            <div id="mainPanelContent" class="main-panel-content"></div>
+          </div>
+        </div>
+        <div class="bottom-view-tabs" role="tablist">
+          <button
+            class="bottom-view-tab active"
+            data-view="selected"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            onclick="setDetailsView('selected')"
+          >
+            Selected time
+          </button>
+          <button
+            class="bottom-view-tab"
+            data-view="forecast"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            onclick="setDetailsView('forecast')"
+          >
+            Daily forecast
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
   return {
     renderChartLegend,
     renderForecastDateSelector,
     renderForecastPanel,
     renderLoadingChart,
     renderLoadingDetails,
+    renderLoadedDetailsShell,
     renderSafetyDisclaimer,
     renderSelectedWindowPanel,
   };
