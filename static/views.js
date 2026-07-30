@@ -18,10 +18,10 @@
                   option.value === selectedDate ? 'active' : ''
                 }"
                 type="button"
+                data-forecast-date="${option.value}"
                 aria-pressed="${
                   option.value === selectedDate ? 'true' : 'false'
                 }"
-                onclick="selectForecastDate('${option.value}')"
               >
                 <span class="forecast-date-day">${option.dayLabel}</span>
                 <span class="forecast-date-value">${option.dateLabel}</span>
@@ -191,9 +191,9 @@
   function renderForecastPanel() {
     return `
       <div class="forecast-tabs">
-        <button class="forecast-tab active" data-chart="wind" onclick="showForecastChart('wind')">Wind</button>
-        <button class="forecast-tab" data-chart="rain" onclick="showForecastChart('rain')">Precipitation</button>
-        <button class="forecast-tab" data-chart="air" onclick="showForecastChart('air')">Air</button>
+        <button class="forecast-tab active" data-chart="wind">Wind</button>
+        <button class="forecast-tab" data-chart="rain">Precipitation</button>
+        <button class="forecast-tab" data-chart="air">Air</button>
       </div>
       <div class="forecast-chart-wrap">
         <canvas id="forecastChart"></canvas>
@@ -228,7 +228,6 @@
             type="button"
             role="tab"
             aria-selected="true"
-            onclick="setDetailsView('selected')"
           >
             Selected time
           </button>
@@ -238,7 +237,6 @@
             type="button"
             role="tab"
             aria-selected="false"
-            onclick="setDetailsView('forecast')"
           >
             Daily forecast
           </button>

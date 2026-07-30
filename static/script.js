@@ -636,8 +636,21 @@ function buildSuitabilityWindows(hours) {
   }));
 }
 
-Object.assign(window, {
-  selectForecastDate,
-  setDetailsView,
-  showForecastChart,
+document.addEventListener('click', (event) => {
+  const button = event.target.closest('button');
+  if (!button || button.disabled) return;
+
+  if (button.matches('.forecast-date-choice[data-forecast-date]')) {
+    selectForecastDate(button.dataset.forecastDate);
+    return;
+  }
+
+  if (button.matches('.forecast-tab[data-chart]')) {
+    showForecastChart(button.dataset.chart);
+    return;
+  }
+
+  if (button.matches('.bottom-view-tab[data-view]')) {
+    setDetailsView(button.dataset.view);
+  }
 });

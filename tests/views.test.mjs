@@ -14,7 +14,8 @@ test('date selector marks only the selected forecast date', () => {
     '2026-07-30',
   );
 
-  assert.match(html, /onclick="selectForecastDate\('2026-07-30'\)"/);
+  assert.match(html, /data-forecast-date="2026-07-30"/);
+  assert.doesNotMatch(html, /onclick=/);
   assert.equal((html.match(/aria-pressed="true"/g) || []).length, 1);
   assert.match(html, /Thu/);
 });
@@ -90,9 +91,10 @@ test('selected-window view renders decision and all condition factors', () => {
 test('forecast panel exposes all three chart tabs and a canvas', () => {
   const html = views.renderForecastPanel();
 
-  assert.match(html, /showForecastChart\('wind'\)/);
-  assert.match(html, /showForecastChart\('rain'\)/);
-  assert.match(html, /showForecastChart\('air'\)/);
+  assert.match(html, /data-chart="wind"/);
+  assert.match(html, /data-chart="rain"/);
+  assert.match(html, /data-chart="air"/);
+  assert.doesNotMatch(html, /onclick=/);
   assert.match(html, /id="forecastChart"/);
 });
 
@@ -101,8 +103,7 @@ test('loaded details shell connects both bottom tabs to their panels', () => {
 
   assert.match(html, /data-view="selected"/);
   assert.match(html, /data-view="forecast"/);
-  assert.match(html, /onclick="setDetailsView\('selected'\)"/);
-  assert.match(html, /onclick="setDetailsView\('forecast'\)"/);
+  assert.doesNotMatch(html, /onclick=/);
   assert.match(html, /id="selectedHourDetails"/);
   assert.match(html, /class="selected-window-body"/);
   assert.match(html, /Always verify conditions on site/);
