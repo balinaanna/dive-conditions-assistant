@@ -44,6 +44,27 @@ class AppRouteTests(unittest.TestCase):
         self.assertIsInstance(record["duration_ms"], (int, float))
         self.assertIsNone(record["cache"])
 
+    def test_responses_include_embed_compatible_security_headers(self):
+        response = self.client.get("/")
+
+        policy = response.headers["Content-Security-Policy"]
+        self.assertIn("default-src 'self'", policy)
+        self.assertIn("script-src 'self' https://cdn.jsdelivr.net", policy)
+        self.assertIn("frame-ancestors *", policy)
+        self.assertEqual(
+            response.headers["Permissions-Policy"],
+            "camera=(), geolocation=(), microphone=(), payment=(), usb=()",
+        )
+        self.assertEqual(
+            response.headers["Referrer-Policy"],
+            "strict-origin-when-cross-origin",
+        )
+        self.assertEqual(
+            response.headers["X-Content-Type-Options"],
+            "nosniff",
+        )
+        self.assertNotIn("X-Frame-Options", response.headers)
+
     def test_forecast_routes_reject_invalid_dates(self):
         paths = (
             "/api/chs-current-speed",

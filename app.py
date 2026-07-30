@@ -28,6 +28,19 @@ FORECAST_RESPONSE_CACHE = TTLCache(
     max_entries=int(os.getenv("SERVER_CACHE_MAX_ENTRIES", "64")),
 )
 
+CONTENT_SECURITY_POLICY = (
+    "default-src 'self'; "
+    "script-src 'self' https://cdn.jsdelivr.net; "
+    "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
+    "img-src 'self' data:; "
+    "font-src 'self' data:; "
+    "connect-src 'self'; "
+    "object-src 'none'; "
+    "base-uri 'self'; "
+    "form-action 'self'; "
+    f"frame-ancestors {os.getenv('WIDGET_FRAME_ANCESTORS', '*')}"
+)
+
 
 @app.before_request
 def start_request_observation():
@@ -43,6 +56,12 @@ def finish_request_observation(response):
     cache_status = response.headers.get("X-Cache")
 
     response.headers["X-Request-ID"] = request_id
+    response.headers["Content-Security-Policy"] = CONTENT_SECURITY_POLICY
+    response.headers["Permissions-Policy"] = (
+        "camera=(), geolocation=(), microphone=(), payment=(), usb=()"
+    )
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["X-Content-Type-Options"] = "nosniff"
     app.logger.info(json.dumps({
         "event": "request_completed",
         "request_id": request_id,

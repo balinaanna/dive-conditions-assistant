@@ -79,6 +79,8 @@ the eventual website embed independent of an AI service.
 - Bounded server-side TTL caching reduces duplicate forecast-provider traffic.
 - Request IDs and structured completion logs expose latency, status, and cache
   outcomes without logging forecast payloads.
+- Content, permissions, referrer, and MIME-sniffing security policies preserve
+  intentional iframe embedding while reducing common browser risks.
 - Progressive loading lets independent temperature and conditions data render
   as soon as each endpoint responds.
 - Gunicorn production configuration plus liveness and readiness endpoints.

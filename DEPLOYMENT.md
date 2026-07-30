@@ -35,6 +35,7 @@ The repository contains a `Procfile` with the same start command.
 | `WEB_TIMEOUT` | `45` | Request timeout in seconds |
 | `SERVER_CACHE_TTL_SECONDS` | `900` | Successful API response lifetime |
 | `SERVER_CACHE_MAX_ENTRIES` | `64` | Maximum cached responses per worker |
+| `WIDGET_FRAME_ANCESTORS` | `*` | Origins allowed to embed the widget |
 
 Do not enable `FLASK_DEBUG` in production.
 
@@ -78,6 +79,24 @@ parameters are not logged.
 
 Use the request ID to correlate a browser or API error with its server log
 record.
+
+## Browser security policy
+
+The application sends a Content Security Policy that limits scripts and styles
+to the application itself and jsDelivr, blocks browser features the widget does
+not use, and disables MIME sniffing. It intentionally does not send
+`X-Frame-Options`, because that legacy header would prevent the Wix embed.
+
+Before public launch, set `WIDGET_FRAME_ANCESTORS` to the exact production and
+preview origins that may embed the widget. The value follows CSP
+`frame-ancestors` syntax, for example:
+
+```text
+'self' https://www.example.com https://*.wixsite.com
+```
+
+The default `*` keeps local testing and initial Wix integration unblocked, but
+allows any HTTPS site to embed the widget.
 
 ## Health checks
 
