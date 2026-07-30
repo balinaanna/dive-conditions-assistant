@@ -40,13 +40,8 @@ jobs:
           app.py chs_currents.py conditions_service.py config.py
           gunicorn.conf.py tides.py weather.py
 
-      - name: Smoke-test application routes
-        run: >-
-          python -c 'from app import app;
-          client = app.test_client();
-          assert client.get("/").status_code == 200;
-          assert client.get("/health").get_json() == {"status": "ok"};
-          assert client.get("/ready").get_json() == {"status": "ready"}'
+      - name: Run Python endpoint tests
+        run: python -m unittest discover -s tests -p "test_*.py"
 
       - name: Run JavaScript tests
         run: node --test tests/*.test.mjs

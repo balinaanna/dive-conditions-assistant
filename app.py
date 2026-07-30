@@ -2,6 +2,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
+import requests
 from flask import Flask, jsonify, render_template, request
 
 from chs_currents import fetch_chs_time_series, format_current_event
@@ -17,6 +18,14 @@ FIRST_NARROWS_STATION = {
     "id": "5dd30650e0fdc4b9b4be6d24",
     "name": "First Narrows",
 }
+
+
+def upstream_unavailable(source, error):
+    app.logger.warning("%s request failed: %s", source, error)
+    return jsonify({
+        "error": f"{source} data is temporarily unavailable.",
+    }), 502
+
 
 @app.route("/")
 def index():
@@ -68,12 +77,15 @@ def get_chs_current_speed():
     fetch_start_time = (start_local - timedelta(hours=8)).astimezone(timezone.utc)
     fetch_end_time = (end_local + timedelta(hours=8)).astimezone(timezone.utc)
 
-    event_points = fetch_chs_time_series(
-        station_id,
-        "wcp1-events",
-        fetch_start_time,
-        fetch_end_time,
-    )
+    try:
+        event_points = fetch_chs_time_series(
+            station_id,
+            "wcp1-events",
+            fetch_start_time,
+            fetch_end_time,
+        )
+    except requests.RequestException as error:
+        return upstream_unavailable("Current", error)
 
     events = [format_current_event(point) for point in event_points]
 
@@ -91,6 +103,9 @@ def get_chs_current_speed():
 @app.route("/api/conditions")
 def get_conditions():
     location_id = request.args.get("location", "whytecliff")
+    if location_id not in LOCATIONS:
+        return jsonify({"error": "Unknown location."}), 404
+
     today_local = datetime.now(LOCAL_TIMEZONE).date()
     requested_date = request.args.get("date", today_local.isoformat())
 
@@ -105,8 +120,11 @@ def get_conditions():
     if not today_local <= forecast_date <= today_local + timedelta(days=6):
         return jsonify({"error": "Date must be within the 7-day forecast."}), 400
 
-    session = create_session(location_id, forecast_date.isoformat())
-    result = build_conditions_response(session)
+    try:
+        session = create_session(location_id, forecast_date.isoformat())
+        result = build_conditions_response(session)
+    except requests.RequestException as error:
+        return upstream_unavailable("Conditions", error)
 
     return jsonify(result)
 
@@ -130,10 +148,13 @@ def get_temperatures():
     if not today_local <= forecast_date <= today_local + timedelta(days=6):
         return jsonify({"error": "Date must be within the 7-day forecast."}), 400
 
-    temperatures = fetch_temperature_summary(
-        location,
-        forecast_date.isoformat(),
-    )
+    try:
+        temperatures = fetch_temperature_summary(
+            location,
+            forecast_date.isoformat(),
+        )
+    except requests.RequestException as error:
+        return upstream_unavailable("Temperature", error)
 
     return jsonify({
         "location": location["name"],

@@ -72,8 +72,8 @@ the eventual website embed independent of an AI service.
 
 - Modular vanilla JavaScript with separate assessment, data, formatting,
   rendering, view, metric, and controller modules.
-- Deterministic rule tests covering scoring, window generation, charts,
-  formatting, caching, and UI composition.
+- Automated tests covering backend endpoints, validation, upstream failures,
+  scoring, window generation, charts, formatting, caching, and UI composition.
 - Request sequencing prevents stale responses from replacing a newer date.
 - Shared in-flight requests avoid duplicate API calls.
 - Progressive loading lets independent temperature and conditions data render
@@ -131,6 +131,12 @@ Run the complete JavaScript test suite:
 
 ```bash
 node --test tests/*.test.mjs
+```
+
+Run the Python endpoint tests:
+
+```bash
+python -m unittest discover -s tests -p "test_*.py"
 ```
 
 Check the Python modules and installed dependencies:

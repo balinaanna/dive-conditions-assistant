@@ -78,6 +78,7 @@ the application smoke tests and operational monitoring described below.
 - [ ] The intended commit is on `main`.
 - [ ] GitHub Actions CI is green for that commit.
 - [ ] `node --test tests/*.test.mjs` passes.
+- [ ] `python -m unittest discover -s tests -p "test_*.py"` passes.
 - [ ] `python -m pip check` reports no broken requirements.
 - [ ] Python modules compile successfully.
 - [ ] No `.env`, credentials, access tokens, or personal data are tracked.
