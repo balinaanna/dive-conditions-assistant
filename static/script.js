@@ -257,8 +257,11 @@ function logSuitabilityWindowCurrentSpeeds(windows) {
   console.group('Suitability windows — current speeds');
 
   windows.forEach((window) => {
+    const statusLabel =
+      window.status === 'Ok' ? 'Use caution' : window.status;
+
     console.groupCollapsed(
-      `${formatSuitabilityWindow(window)} · ${statusDisplayLabel(window.status)}`,
+      `${formatSuitabilityWindow(window)} · ${statusLabel}`,
     );
     console.table(
       window.samples.map((sample) => ({
@@ -594,17 +597,7 @@ function renderSelectedHourDetails(index) {
 }
 
 function renderForecastCharts() {
-  return `
-    <div class="forecast-tabs">
-      <button class="forecast-tab active" data-chart="wind" onclick="showForecastChart('wind')">Wind</button>
-      <button class="forecast-tab" data-chart="rain" onclick="showForecastChart('rain')">Precipitation</button>
-      <button class="forecast-tab" data-chart="air" onclick="showForecastChart('air')">Air</button>
-    </div>
-
-    <div class="forecast-chart-wrap">
-      <canvas id="forecastChart"></canvas>
-    </div>
-  `;
+  return window.DiveViews.renderForecastPanel();
 }
 
 function renderMainPanel() {

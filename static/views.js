@@ -188,9 +188,23 @@
     `;
   }
 
+  function renderForecastPanel() {
+    return `
+      <div class="forecast-tabs">
+        <button class="forecast-tab active" data-chart="wind" onclick="showForecastChart('wind')">Wind</button>
+        <button class="forecast-tab" data-chart="rain" onclick="showForecastChart('rain')">Precipitation</button>
+        <button class="forecast-tab" data-chart="air" onclick="showForecastChart('air')">Air</button>
+      </div>
+      <div class="forecast-chart-wrap">
+        <canvas id="forecastChart"></canvas>
+      </div>
+    `;
+  }
+
   return {
     renderChartLegend,
     renderForecastDateSelector,
+    renderForecastPanel,
     renderLoadingChart,
     renderLoadingDetails,
     renderSafetyDisclaimer,

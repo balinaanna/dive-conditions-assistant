@@ -86,3 +86,12 @@ test('selected-window view renders decision and all condition factors', () => {
   assert.match(html, /Current is mild/);
   assert.equal((html.match(/class="factor-card /g) || []).length, 3);
 });
+
+test('forecast panel exposes all three chart tabs and a canvas', () => {
+  const html = views.renderForecastPanel();
+
+  assert.match(html, /showForecastChart\('wind'\)/);
+  assert.match(html, /showForecastChart\('rain'\)/);
+  assert.match(html, /showForecastChart\('air'\)/);
+  assert.match(html, /id="forecastChart"/);
+});
