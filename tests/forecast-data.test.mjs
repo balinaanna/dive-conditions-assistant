@@ -18,7 +18,7 @@ test('simultaneous forecast requests share one set of API calls', async () => {
   const fetchImpl = async (url) => {
     calls.push(url);
 
-    if (url.startsWith('/api/chs-current-speed')) {
+    if (url.startsWith('/api/current-speed')) {
       return jsonResponse({ points: [] });
     }
 
@@ -42,7 +42,7 @@ test('forecast cache is reused until its expiry', async () => {
     now: () => currentTime,
     fetchImpl: async (url) => {
       requestCount += 1;
-      return url.startsWith('/api/chs-current-speed')
+      return url.startsWith('/api/current-speed')
         ? jsonResponse({ points: [] })
         : jsonResponse({ requestCount });
     },

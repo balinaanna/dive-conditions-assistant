@@ -80,10 +80,23 @@ function getSlackPoints(currentSpeedData) {
   if (!currentSpeedData?.points) return [];
 
   return currentSpeedData.points
-    .filter((point) => point.qualifier === 'SLACK')
+    .filter((point) =>
+      ['SLACK', 'ESTIMATED_REVERSAL', 'LOW_CURRENT_MINIMUM'].includes(
+        point.qualifier,
+      ),
+    )
     .map((point) => ({
-      x: hoursFromChartStart(point.time, currentSpeedData.start_time),
-      time: point.time,
+      x: hoursFromChartStart(
+        point.event_time || point.time,
+        currentSpeedData.start_time,
+      ),
+      time: point.event_time || point.time,
+      qualifier: point.qualifier,
+      label: {
+        SLACK: 'Slack',
+        ESTIMATED_REVERSAL: 'Est. reversal',
+        LOW_CURRENT_MINIMUM: 'Low-current minimum',
+      }[point.qualifier],
     }))
     .filter((point) => point.x >= 0 && point.x <= 24);
 }
@@ -100,8 +113,37 @@ function valueAt(points, x) {
   return nearest?.y ?? null;
 }
 
+function currentSpeedAt(points, x) {
+  if (!points.length) return null;
+
+  const eastPoints = points
+    .filter((point) => Number.isFinite(point.east))
+    .map((point) => ({ x: point.x, y: point.east }));
+  const northPoints = points
+    .filter((point) => Number.isFinite(point.north))
+    .map((point) => ({ x: point.x, y: point.north }));
+
+  if (eastPoints.length === points.length && northPoints.length === points.length) {
+    const east = interpolateY(eastPoints, x);
+    const north = interpolateY(northPoints, x);
+    if (east !== null && north !== null) return Math.hypot(east, north);
+  }
+
+  const scalar = interpolateY(points, x);
+  if (scalar !== null) return Math.abs(scalar);
+
+  const nearest = points.reduce((best, point) => {
+    if (!best) return point;
+    return Math.abs(point.x - x) < Math.abs(best.x - x) ? point : best;
+  }, null);
+
+  return nearest && Math.abs(nearest.x - x) <= 0.75
+    ? Math.abs(nearest.y)
+    : null;
+}
+
 function assessSample(context, x) {
-  const speed = valueAt(context.currentPoints, x);
+  const speed = currentSpeedAt(context.currentPoints, x);
   const wind = valueAt(context.windPoints, x);
   const rain = valueAt(context.rainPoints, x);
 
@@ -121,10 +163,11 @@ function assessSample(context, x) {
   const reasons = [];
 
   if (absSpeed === null) {
-    reasons.push('Current-speed data is unavailable');
+    score = 20;
+    reasons.push('Local current-speed forecast is unavailable');
   } else if (absSpeed <= 0.35) {
     score = 78;
-    reasons.push('Current is near slack');
+    reasons.push('Modelled current speed is low');
   } else if (absSpeed <= 0.75) {
     score = 68;
     reasons.push('Current is relatively mild');
@@ -136,28 +179,31 @@ function assessSample(context, x) {
     reasons.push('Current is strong');
   }
 
-  const nearestSlack = context.slackPoints.reduce((best, point) => {
+  const reversalPoints = context.slackPoints.filter(
+    (point) => point.qualifier === 'ESTIMATED_REVERSAL',
+  );
+  const nearestReversal = reversalPoints.reduce((best, point) => {
     if (!best) return point;
     return Math.abs(point.x - x) < Math.abs(best.x - x) ? point : best;
   }, null);
 
-  if (nearestSlack && Math.abs(nearestSlack.x - x) <= 0.75) {
+  if (nearestReversal && Math.abs(nearestReversal.x - x) <= 0.75) {
     const nearestTide = context.tideEvents.reduce((best, event) => {
       if (!best) return event;
-      return Math.abs(event.x - nearestSlack.x) <
-        Math.abs(best.x - nearestSlack.x)
+      return Math.abs(event.x - nearestReversal.x) <
+        Math.abs(best.x - nearestReversal.x)
         ? event
         : best;
     }, null);
-    const highTideSlack =
+    const highTideReversal =
       nearestTide &&
       context.tideHeightMidpoint !== null &&
       nearestTide.height >= context.tideHeightMidpoint;
 
-    score += highTideSlack ? 12 : 5;
-    reasons[0] = highTideSlack
-      ? 'Slack current near high tide is especially favorable'
-      : 'Conditions improve around slack current';
+    score += highTideReversal ? 12 : 5;
+    reasons[0] = highTideReversal
+      ? 'Low current near an estimated reversal and high tide'
+      : 'Conditions improve near an estimated current reversal';
   }
 
   const windRisk = windRiskForSpeed(wind);
@@ -202,6 +248,8 @@ function assessmentContext({ hours, currentSpeedData, tides, daily }) {
     .map((point) => ({
       x: hoursFromChartStart(point.time, currentSpeedData.start_time),
       y: point.speed,
+      east: point.east_kn,
+      north: point.north_kn,
     }))
     .sort((a, b) => a.x - b.x);
   const tideEvents = (tides?.events || []).map((event) => ({
@@ -285,6 +333,7 @@ function buildSuitabilityWindows(input) {
 return {
   SUITABILITY_SAMPLE_STEP_HOURS,
   buildSuitabilityWindows,
+  currentSpeedAt,
   currentRiskForSpeed,
   getSlackPoints,
   hoursFromChartStart,

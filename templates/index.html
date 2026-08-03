@@ -10,7 +10,7 @@
     />
     <link
       rel="stylesheet"
-      href="{{ url_for('static', filename='styles.css') }}"
+      href="{{ url_for('static', filename='styles.css', v=asset_version) }}"
     />
 
     <script
@@ -28,14 +28,14 @@
       </div>
     </div>
 
-    <script src="{{ url_for('static', filename='assessment-engine.js') }}"></script>
-    <script src="{{ url_for('static', filename='forecast-data.js') }}"></script>
-    <script src="{{ url_for('static', filename='chart-plugins.js') }}"></script>
-    <script src="{{ url_for('static', filename='chart-renderer.js') }}"></script>
-    <script src="{{ url_for('static', filename='views.js') }}"></script>
-    <script src="{{ url_for('static', filename='condition-formatters.js') }}"></script>
-    <script src="{{ url_for('static', filename='condition-metrics.js') }}"></script>
-    <script src="{{ url_for('static', filename='widget-controller.js') }}"></script>
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script src="{{ url_for('static', filename='assessment-engine.js', v=asset_version) }}"></script>
+    <script src="{{ url_for('static', filename='forecast-data.js', v=asset_version) }}"></script>
+    <script src="{{ url_for('static', filename='chart-plugins.js', v=asset_version) }}"></script>
+    <script src="{{ url_for('static', filename='chart-renderer.js', v=asset_version) }}"></script>
+    <script src="{{ url_for('static', filename='views.js', v=asset_version) }}"></script>
+    <script src="{{ url_for('static', filename='condition-formatters.js', v=asset_version) }}"></script>
+    <script src="{{ url_for('static', filename='condition-metrics.js', v=asset_version) }}"></script>
+    <script src="{{ url_for('static', filename='widget-controller.js', v=asset_version) }}"></script>
+    <script src="{{ url_for('static', filename='script.js', v=asset_version) }}"></script>
   </body>
 </html>

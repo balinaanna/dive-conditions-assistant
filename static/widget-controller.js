@@ -20,6 +20,7 @@
     let selectedDate = initialDate;
     let latestRequestId = 0;
     let activeView = 'selected';
+    let availableForecastDates = null;
 
     function beginRequest() {
       latestRequestId += 1;
@@ -43,7 +44,7 @@
     }
 
     function forecastDateOptions(today = new Date()) {
-      return Array.from({ length: 7 }, (_, offset) => {
+      const options = Array.from({ length: 3 }, (_, offset) => {
         const date = new Date(today);
         date.setDate(today.getDate() + offset);
         return {
@@ -58,6 +59,22 @@
           }),
         };
       });
+
+      if (availableForecastDates) {
+        return options.filter((option) =>
+          availableForecastDates.has(option.value),
+        );
+      }
+
+      // Avoid advertising the commonly partial third model day while the
+      // current-coverage response is still loading.
+      return options.slice(0, 2);
+    }
+
+    function setAvailableForecastDates(dates) {
+      if (!Array.isArray(dates) || dates.length === 0) return false;
+      availableForecastDates = new Set(dates);
+      return true;
     }
 
     return {
@@ -75,6 +92,7 @@
       isCurrentRequest,
       selectDate,
       selectView,
+      setAvailableForecastDates,
     };
   }
 

@@ -250,6 +250,8 @@
     detailsShell,
     legend,
     location,
+    currentSource,
+    currentCoverageNote,
     waterTemperature,
   }) {
     return `
@@ -277,9 +279,13 @@
         </strong>
         <div class="usage-instruction date-instruction">
           <strong>Select a date.</strong>
-          Forecast is available for 7 days, starting today.
+          Dates shown have full current forecast coverage.
         </div>
         ${dateSelector}
+        <div class="current-source-note">
+          <strong>Current source:</strong> ${currentSource}
+          ${currentCoverageNote ? `<span>${currentCoverageNote}</span>` : ''}
+        </div>
         <div class="row g-2">
           <div class="col-12">
             <span class="usage-instruction chart-instruction">
@@ -333,9 +339,12 @@
         </strong>
         <div class="usage-instruction date-instruction">
           <strong>Select a date.</strong>
-          Forecast is available for 7 days, starting today.
+          Dates shown have full current forecast coverage.
         </div>
         ${dateSelector}
+        <div class="current-source-note">
+          <strong>Current source:</strong> Resolving the best available forecast
+        </div>
         <div class="row g-2">
           <div class="col-12">
             <span class="usage-instruction chart-instruction">

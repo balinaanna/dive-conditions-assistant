@@ -101,7 +101,7 @@ class AppRouteTests(unittest.TestCase):
 
     def test_forecast_routes_reject_invalid_dates(self):
         paths = (
-            "/api/chs-current-speed",
+            "/api/current-speed?location=whytecliff",
             "/api/conditions?location=whytecliff",
             "/api/temperatures?location=whytecliff",
         )
@@ -116,10 +116,10 @@ class AppRouteTests(unittest.TestCase):
                     {"error": "Invalid date format. Use YYYY-MM-DD."},
                 )
 
-    def test_forecast_routes_reject_dates_outside_seven_day_range(self):
-        outside_date = (self.today + timedelta(days=7)).isoformat()
+    def test_forecast_routes_reject_dates_outside_three_day_range(self):
+        outside_date = (self.today + timedelta(days=3)).isoformat()
         paths = (
-            "/api/chs-current-speed",
+            "/api/current-speed?location=whytecliff",
             "/api/conditions?location=whytecliff",
             "/api/temperatures?location=whytecliff",
         )
@@ -133,7 +133,7 @@ class AppRouteTests(unittest.TestCase):
                 self.assertEqual(response.status_code, 400)
                 self.assertEqual(
                     response.get_json(),
-                    {"error": "Date must be within the 7-day forecast."},
+                    {"error": "Date must be within the 3-day forecast."},
                 )
 
     def test_location_routes_reject_unknown_locations(self):
@@ -148,26 +148,36 @@ class AppRouteTests(unittest.TestCase):
                     {"error": "Unknown location."},
                 )
 
-    @patch("app.fetch_chs_time_series")
-    def test_current_endpoint_formats_provider_events(self, fetch_series):
-        fetch_series.return_value = [
-            {
-                "eventDate": f"{self.today_string}T12:00:00Z",
-                "qualifier": "SLACK",
-                "value": 0,
-            },
-        ]
+    @patch("app.build_current_forecast")
+    def test_current_endpoint_returns_combined_forecast(self, build_forecast):
+        build_forecast.return_value = {
+            "location": "Whytecliff Park",
+            "source": "UBC SalishSeaCast",
+            "provider": "salishseacast",
+            "dataset_id": "ubcSSfDepthAvgdCurrents1h",
+            "model_grid": {"grid_y": 479, "grid_x": 328},
+            "unit": "kn",
+            "points": [{"speed": 0.42}],
+            "coverage": {"available": True},
+            "confidence": "high",
+        }
 
         response = self.client.get(
-            f"/api/chs-current-speed?date={self.today_string}",
+            "/api/current-speed"
+            f"?location=whytecliff&date={self.today_string}",
         )
 
         self.assertEqual(response.status_code, 200)
         payload = response.get_json()
-        self.assertEqual(payload["source"], "CHS")
+        self.assertEqual(payload["source"], "UBC SalishSeaCast")
+        self.assertEqual(payload["dataset_id"], "ubcSSfDepthAvgdCurrents1h")
+        self.assertEqual(payload["model_grid"]["grid_y"], 479)
         self.assertEqual(payload["unit"], "kn")
-        self.assertEqual(payload["points"][0]["speed"], 0)
+        self.assertEqual(payload["points"][0]["speed"], 0.42)
+        self.assertTrue(payload["coverage"]["available"])
+        self.assertEqual(payload["confidence"], "high")
         self.assertEqual(response.headers["X-Cache"], "MISS")
+        build_forecast.assert_called_once()
 
     @patch("app.build_conditions_response")
     @patch("app.create_session")
@@ -198,7 +208,6 @@ class AppRouteTests(unittest.TestCase):
     @patch("app.fetch_temperature_summary")
     def test_temperature_endpoint_returns_summary(self, fetch_summary):
         fetch_summary.return_value = {
-            "air_temp_c": 18.5,
             "water_temp_c": 12.4,
         }
 
@@ -242,8 +251,9 @@ class AppRouteTests(unittest.TestCase):
     def test_provider_timeouts_return_structured_502_responses(self):
         cases = (
             (
-                "app.fetch_chs_time_series",
-                f"/api/chs-current-speed?date={self.today_string}",
+                "app.build_current_forecast",
+                "/api/current-speed"
+                f"?location=whytecliff&date={self.today_string}",
                 "Current",
             ),
             (

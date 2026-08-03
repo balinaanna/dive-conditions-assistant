@@ -40,26 +40,35 @@ starting score:
 
 | Absolute current speed | Starting score | Interpretation |
 | --- | ---: | --- |
-| Data unavailable | 45 | Current data unavailable |
-| Up to 0.35 kn | 78 | Near slack |
+| Data unavailable | 20 | Local current forecast unavailable |
+| Up to 0.35 kn | 78 | Low modelled current |
 | Above 0.35 to 0.75 kn | 68 | Relatively mild |
 | Above 0.75 to 1.50 kn | 45 | Requires caution |
 | Above 1.50 kn | 20 | Strong |
 
-## Slack and tide adjustment
+## Estimated reversal and tide adjustment
 
-An interval is considered close to slack when its midpoint is within 45 minutes
-of the nearest predicted slack-current event.
+An interval is considered close to an estimated current reversal when its
+midpoint is within 45 minutes of a direction-aware model event.
 
-- Slack near high tide adds 12 points.
-- Slack near low tide adds 5 points.
+- An estimated reversal near high tide adds 12 points.
+- An estimated reversal near low tide adds 5 points.
 
 High versus low tide is determined by comparing the tide event closest to the
-slack event with the midpoint between the day's minimum and maximum predicted
-tide-event heights.
+estimated reversal with the midpoint between the day's minimum and maximum
+predicted tide-event heights.
 
-This adjustment makes high-tide slack the most favorable current scenario while
-still recognizing low-tide slack as an improvement.
+Low speed by itself does not create a reversal marker. The current vector must
+change sign along the dominant flow axis, and its interpolated total speed at
+that crossing must be no more than 0.5 kn. Events less than three hours apart
+are deduplicated. Because the source is hourly model output, these are
+approximate reversal times rather than official slack-current predictions.
+
+The chart also marks the lowest hourly value in each continuous period at or
+below 0.35 kn as **Slack**. This preserves useful slack-like timing at
+locations where the modelled current rotates or retains a background flow
+instead of reversing cleanly. A minimum-current marker does not receive the
+reversal score adjustment.
 
 ## Wind adjustment
 
@@ -113,13 +122,40 @@ representative interval:
 ## Current data used by this version
 
 - Tide curve and high/low events: CHS Point Atkinson station.
-- Current events and speeds: CHS First Narrows station.
+- Current vectors: UBC SalishSeaCast dataset
+  `ubcSSfDepthAvgdCurrents1h`.
+- Model grid location: nearest wet cell found in the SalishSeaCast
+  `ubcSSn2DMeshMaskV21-08` dataset around the configured Whytecliff grid seed.
+- Model values: hourly eastward and northward velocity components averaged
+  over the upper five model levels, nominally five metres.
 
-The First Narrows current series is currently used as a regional proxy. It is
-not a direct current measurement at Whytecliff Park. This limitation should be
-considered when interpreting the assessment and should remain visible in
-project documentation until a validated site-specific source or model replaces
-it.
+The application interpolates the eastward and northward components separately
+to each 15-minute assessment time, then calculates vector magnitude and
+converts metres per second to knots. Estimated reversals are calculated from a
+sign change along the rolling series' dominant flow axis. This prevents small
+same-direction speed fluctuations from being mislabeled as slack.
+
+Modelled reversal times are compared one-to-one with First Narrows CHS
+slack-current events from the same local day. Agreement within 60 minutes is
+high-confidence phase alignment; agreement within 120 minutes is medium
+confidence; larger differences are low confidence. A missing or extra event
+also makes the comparison divergent and low confidence. CHS values are not
+treated as local Whytecliff measurements.
+
+The current-provider fallback order is:
+
+1. SalishSeaCast forecast.
+2. CIOPS adapter (reserved but not yet configured).
+3. First Narrows CHS event-based estimated curve, explicitly marked low
+   confidence.
+4. Current unavailable.
+
+SalishSeaCast is a regional numerical model, not a measurement at the dive
+entry. Its rolling forecast can provide only partial coverage on the third
+displayed date. The application does not extrapolate model data across
+uncovered periods. When the model has no usable series, provenance and
+confidence identify whether the response came from the CHS fallback or is
+unavailable.
 
 ## Known limitations
 
@@ -127,7 +163,9 @@ it.
 - The model does not currently include waves, swell, visibility, water quality,
   vessel traffic, equipment, diver ability, or instructor judgment.
 - Weather values are hourly and interpolated between forecast points.
-- Predicted tide and current events are not real-time observations.
+- Predicted tides and modelled currents are not real-time observations at the
+  Whytecliff entry.
+- Estimated current reversals are derived from hourly averaged model vectors;
+  they should not be treated as precise slack-water predictions.
 - A rating describes the configured forecast rules, not whether entering the
   water is safe.
-

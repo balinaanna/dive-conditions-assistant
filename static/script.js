@@ -76,7 +76,7 @@ let selectedHourIndex = 0;
 let selectedSuitabilityWindow = null;
 let activeForecastChart = null;
 
-let chsCurrentSpeedData = null;
+let currentSpeedData = null;
 
 const widgetController = window.WidgetController.createWidgetController();
 const { localDateString } = window.WidgetController;
@@ -276,7 +276,7 @@ function drawTideChart(data, canvasId = 'tideChart') {
   return tideChartRenderer.drawTideChart({
     canvas: document.getElementById(canvasId),
     currentDecimalHour: getCurrentDecimalHour(),
-    currentSpeedData: chsCurrentSpeedData,
+    currentSpeedData,
     data,
     showNow: isTodaySelected(),
     slackPoints: getSlackPoints(),
@@ -556,10 +556,56 @@ function loadConditions(locationId, forecastDate = selectedForecastDate) {
 
       const data = bundle.conditions;
       const hours = data.hourly_forecast;
-      chsCurrentSpeedData = bundle.currentSpeed;
+      currentSpeedData = bundle.currentSpeed;
+      widgetController.setAvailableForecastDates(
+        currentSpeedData?.fully_available_dates,
+      );
       appData = data;
       selectedHours = hours;
       selectedForecastDate = data.daily.date;
+
+      const currentSource = [
+        currentSpeedData?.source,
+        currentSpeedData?.depth_average,
+      ].filter(Boolean).join(', ') || 'Unavailable';
+      const currentNotes = [];
+      if (currentSpeedData?.provider === 'chs_estimate') {
+        currentNotes.push('Using the low-confidence CHS event-curve fallback.');
+      } else if (currentSpeedData?.provider === 'unavailable') {
+        currentNotes.push('No current forecast is available for this date.');
+      }
+      if (currentSpeedData?.coverage?.partial_day) {
+        currentNotes.push(
+          'Coverage is partial; uncovered periods are marked not recommended.',
+        );
+      }
+      if (currentSpeedData?.confidence) {
+        currentNotes.push(`Confidence: ${currentSpeedData.confidence}.`);
+      }
+      const phaseStatus = currentSpeedData?.phase_comparison?.status;
+      const modelReversalCount =
+        currentSpeedData?.phase_comparison?.model_reversal_count;
+      const chsSlackCount = currentSpeedData?.phase_comparison?.chs_slack_count;
+      if (
+        Number.isInteger(modelReversalCount) &&
+        Number.isInteger(chsSlackCount) &&
+        modelReversalCount !== chsSlackCount
+      ) {
+        currentNotes.push(
+          `Model found ${modelReversalCount} reversals; ` +
+          `CHS reference has ${chsSlackCount} slack events.`,
+        );
+      }
+      if (
+        phaseStatus &&
+        !['fallback_source', 'not_comparable', 'unavailable'].includes(
+          phaseStatus,
+        )
+      ) {
+        currentNotes.push(
+          `CHS phase comparison: ${phaseStatus.replaceAll('_', ' ')}.`,
+        );
+      }
 
       document.getElementById('conditionsSection').innerHTML =
         window.DiveViews.renderLoadedAssessmentShell({
@@ -567,6 +613,8 @@ function loadConditions(locationId, forecastDate = selectedForecastDate) {
           detailsShell: window.DiveViews.renderLoadedDetailsShell(),
           legend: renderChartLegend(),
           location: data.location,
+          currentSource,
+          currentCoverageNote: currentNotes.join(' '),
           waterTemperature: displayValue(data.current.water_temp_c, '°C'),
         });
 
@@ -614,7 +662,7 @@ function formatLocalTime12(timeString) {
 }
 
 function getSlackPoints() {
-  return getAssessmentSlackPoints(chsCurrentSpeedData);
+  return getAssessmentSlackPoints(currentSpeedData);
 }
 
 function suitabilityRangeFill(status) {
@@ -627,7 +675,7 @@ function suitabilityRangeFill(status) {
 function buildSuitabilityWindows(hours) {
   return calculateSuitabilityWindows({
     hours,
-    currentSpeedData: chsCurrentSpeedData,
+    currentSpeedData,
     tides: appData?.tides,
     daily: appData?.daily,
   }).map((window) => ({

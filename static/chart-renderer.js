@@ -152,6 +152,8 @@
             (new Date(point.time) - new Date(currentSpeedData.start_time)) /
             (1000 * 60 * 60),
           y: point.speed,
+          east: point.east_kn,
+          north: point.north_kn,
         }))
         .sort((a, b) => a.x - b.x);
       const curvePoints = (data.tides.curve || []).map((point) => ({
@@ -163,8 +165,24 @@
         : null;
 
       function currentSpeedAt(decimalHour) {
+        const eastPoints = currentSpeedPoints
+          .filter((point) => Number.isFinite(point.east))
+          .map((point) => ({ x: point.x, y: point.east }));
+        const northPoints = currentSpeedPoints
+          .filter((point) => Number.isFinite(point.north))
+          .map((point) => ({ x: point.x, y: point.north }));
+
+        if (
+          eastPoints.length === currentSpeedPoints.length &&
+          northPoints.length === currentSpeedPoints.length
+        ) {
+          const east = interpolateY(eastPoints, decimalHour);
+          const north = interpolateY(northPoints, decimalHour);
+          if (east !== null && north !== null) return Math.hypot(east, north);
+        }
+
         const interpolated = interpolateY(currentSpeedPoints, decimalHour);
-        if (interpolated !== null) return interpolated;
+        if (interpolated !== null) return Math.abs(interpolated);
 
         const nearest = currentSpeedPoints.reduce((best, point) => {
           if (!best) return point;
@@ -174,7 +192,9 @@
             : best;
         }, null);
 
-        return nearest?.y ?? null;
+        return nearest && Math.abs(nearest.x - decimalHour) <= 0.75
+          ? Math.abs(nearest.y)
+          : null;
       }
 
       const chart = new Chart(canvas, {

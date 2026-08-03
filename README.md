@@ -10,7 +10,7 @@ day.
 [**View the live demo**](https://dive-conditions-assistant.onrender.com)
 
 The current version is configured for **Whytecliff Park, BC, Canada** and
-provides guidance for today and the following six days.
+provides guidance for today and the following two days.
 
 ![Dive Conditions Widget showing the daily assessment chart and selected time-window details](docs/images/widget-overview.jpg)
 
@@ -21,13 +21,13 @@ provides guidance for today and the following six days.
   selectable time windows.
 - Distinguishes **Ideal**, **Good**, **Use caution**, and
   **Not recommended** conditions.
-- Prioritizes current speed and slack timing, with an additional benefit for
-  slack near high tide.
+- Prioritizes local modelled current speed and direction-aware estimated
+  reversals, with an additional benefit for a reversal near high tide.
 - Treats wind as a secondary factor, precipitation as a smaller factor, and
   darkness as not recommended.
 - Shows the full current-speed and wind ranges plus accumulated precipitation
   for the selected window.
-- Loads seven forecast dates progressively and caches previously requested
+- Loads three forecast dates progressively and caches previously requested
   data in the browser.
 - Keeps a stable, responsive widget layout while data from separate endpoints
   arrives.
@@ -54,13 +54,17 @@ factor weights, data limitations, and selected-window calculations.
 ```mermaid
 flowchart LR
     Weather["Open-Meteo weather<br/>and marine forecasts"]
-    CHS["Canadian Hydrographic Service<br/>tide and current predictions"]
+    CHS["Canadian Hydrographic Service<br/>tide predictions"]
+    SSC["UBC SalishSeaCast<br/>near-surface current forecast"]
+    Current["Current provider resolver<br/>phase check and fallback"]
     Backend["Flask API<br/>fetch, normalize, cache"]
     Engine["Deterministic browser engine<br/>15-minute assessment"]
     UI["Interactive widget<br/>chart and window details"]
 
     Weather --> Backend
-    CHS --> Backend
+    CHS --> Current
+    SSC --> Current
+    Current --> Backend
     Backend --> Engine
     Engine --> UI
 ```
@@ -95,11 +99,18 @@ the eventual website embed independent of an AI service.
 - **Open-Meteo weather forecast:** wind, precipitation, air temperature,
   sunrise, and sunset.
 - **Open-Meteo marine forecast:** sea-surface temperature.
-- **Canadian Hydrographic Service:** tide predictions and current events.
+- **Canadian Hydrographic Service:** Point Atkinson tide predictions.
+- **Canadian Hydrographic Service:** First Narrows current events for tidal
+  phase comparison and a low-confidence fallback curve.
+- **UBC SalishSeaCast:** hourly eastward and northward current components
+  averaged over the upper five model levels, nominally five metres.
 
-The current series uses First Narrows as a regional proxy; it is not a direct
-current measurement at Whytecliff Park. The tide curve uses the Point Atkinson
-station. These limitations are documented in
+The current forecast resolves the nearest wet SalishSeaCast cell around a
+configured grid seed rather than assuming that the seed is water. Vector
+components are interpolated before speed is calculated, and modelled reversal
+times are compared with CHS slack events to produce a confidence level. The
+fallback order is SalishSeaCast, a reserved CIOPS adapter, the CHS event-based
+estimate, then an explicit unavailable result. These limitations are documented in
 [ASSESSMENT_METHOD.md](ASSESSMENT_METHOD.md).
 
 ## Project structure
@@ -109,7 +120,9 @@ station. These limitations are documented in
 | `app.py` | Flask routes, validation, and API responses |
 | `conditions_service.py` | Forecast-session orchestration |
 | `response_cache.py` | Thread-safe response caching and request coalescing |
-| `weather.py`, `tides.py`, `chs_currents.py` | External data retrieval and normalization |
+| `weather.py`, `tides.py`, `salishsea_currents.py` | Active external data retrieval and normalization |
+| `current_forecast.py` | Current-provider order, CHS phase comparison, confidence, and fallbacks |
+| `chs_currents.py` | First Narrows phase events and event-curve fallback |
 | `static/assessment-engine.js` | Deterministic scoring and window generation |
 | `static/forecast-data.js` | API access, caching, and shared requests |
 | `static/chart-renderer.js`, `static/chart-plugins.js` | Tide and forecast charts |
@@ -153,7 +166,7 @@ python -m unittest discover -s tests -p "test_*.py"
 Check the Python modules and installed dependencies:
 
 ```bash
-python -m compileall -q app.py chs_currents.py conditions_service.py \
+python -m compileall -q app.py chs_currents.py salishsea_currents.py conditions_service.py \
   config.py gunicorn.conf.py tides.py weather.py
 python -m pip check
 ```

@@ -47,7 +47,8 @@ The deployed service makes server-side HTTPS requests to:
 | --- | --- | --- |
 | Open-Meteo | `api.open-meteo.com` | Weather, wind, precipitation, daylight, air temperature |
 | Open-Meteo Marine | `marine-api.open-meteo.com` | Sea-surface temperature |
-| Canadian Hydrographic Service | `api-iwls.dfo-mpo.gc.ca` | Tide and current predictions |
+| Canadian Hydrographic Service | `api-iwls.dfo-mpo.gc.ca` | Tide predictions and current phase events |
+| UBC SalishSeaCast ERDDAP | `salishsea.eos.ubc.ca` | Near-surface current forecast |
 
 No API keys or runtime AI credentials are currently required.
 
@@ -154,7 +155,7 @@ Also test one API request directly:
 /api/conditions?location=whytecliff&date=YYYY-MM-DD
 ```
 
-Use a date within the displayed seven-day range.
+Use a date within the displayed three-day range.
 
 ## Wix iframe requirements
 

@@ -7,7 +7,7 @@ const { createWidgetController, localDateString } = require(
   '../static/widget-controller.js',
 );
 
-test('normalizes local dates and creates exactly seven forecast options', () => {
+test('defaults to two forecast dates while current coverage loads', () => {
   const today = new Date(2026, 6, 29, 12);
   const controller = createWidgetController({
     initialDate: '2026-07-29',
@@ -15,9 +15,26 @@ test('normalizes local dates and creates exactly seven forecast options', () => 
   const options = controller.forecastDateOptions(today);
 
   assert.equal(localDateString(today), '2026-07-29');
-  assert.equal(options.length, 7);
+  assert.equal(options.length, 2);
   assert.equal(options[0].dayLabel, 'Today');
-  assert.equal(options[6].value, '2026-08-04');
+  assert.equal(options[1].value, '2026-07-30');
+});
+
+test('shows only dates with full current forecast coverage', () => {
+  const today = new Date(2026, 6, 29, 12);
+  const controller = createWidgetController({
+    initialDate: '2026-07-29',
+  });
+
+  controller.setAvailableForecastDates([
+    '2026-07-29',
+    '2026-07-30',
+  ]);
+
+  assert.deepEqual(
+    controller.forecastDateOptions(today).map((option) => option.value),
+    ['2026-07-29', '2026-07-30'],
+  );
 });
 
 test('date selection reports whether state actually changed', () => {

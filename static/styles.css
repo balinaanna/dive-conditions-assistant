@@ -185,6 +185,20 @@ body {
   text-transform: uppercase;
 }
 
+.current-source-note {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.6rem;
+  margin: 0.65rem 0 0.9rem;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.current-source-note strong {
+  color: var(--text-primary);
+}
+
 .safety-disclaimer {
   width: 100%;
   margin: 8px 0 0;

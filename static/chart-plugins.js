@@ -88,7 +88,7 @@
           ctx.fillStyle = colors.text.primary;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText('Slack', x, chartArea.bottom + 14);
+          ctx.fillText(point.label, x, chartArea.bottom + 14);
           ctx.fillText(
             options.formatTime(point.time),
             x,

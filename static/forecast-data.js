@@ -47,12 +47,14 @@
       });
     }
 
-    function loadCurrentSpeed(forecastDate) {
+    function loadCurrentSpeed(locationId, forecastDate) {
       return fetchJson(
-        `/api/chs-current-speed?date=${encodeURIComponent(forecastDate)}`,
+        `/api/current-speed?location=${encodeURIComponent(
+          locationId,
+        )}&date=${encodeURIComponent(forecastDate)}`,
         'Current-speed request failed',
       ).catch((error) => {
-        console.warn('Failed to load CHS current speed:', error);
+        console.warn('Failed to load SalishSeaCast current speed:', error);
         return null;
       });
     }
@@ -71,7 +73,7 @@
       }
 
       const requestPromise = Promise.all([
-        loadCurrentSpeed(forecastDate),
+        loadCurrentSpeed(locationId, forecastDate),
         fetchJson(
           `/api/conditions?location=${encodeURIComponent(
             locationId,
