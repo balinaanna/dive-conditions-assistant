@@ -8,6 +8,14 @@
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this, function createViews() {
   function renderForecastDateSelector(options, selectedDate) {
+    if (options.length === 0) {
+      return `
+        <div class="forecast-date-selector-empty">
+          No dates currently have complete current coverage.
+        </div>
+      `;
+    }
+
     return `
       <div class="forecast-date-selector" aria-label="Forecast date">
         ${options
@@ -65,6 +73,38 @@
     `;
   }
 
+  function renderResourceStatuses(statuses) {
+    return `
+      <div class="resource-statuses" aria-label="Forecast resource status">
+        <div class="resource-statuses-label">Data sources</div>
+        ${statuses
+          .map((item) => {
+            const available = item.status === 'available';
+            const loading = item.status === 'loading';
+            const statusLabel = item.status === 'temporarily_unavailable'
+              ? 'Temporarily unavailable'
+              : '';
+            return `
+              <span class="resource-status ${
+                available ? 'available' : loading ? 'loading' : 'unavailable'
+              }">
+                <span class="resource-status-dot" aria-hidden="true"></span>
+                <span class="resource-status-name">
+                  ${item.source ? `<strong>${item.source}</strong> — ` : ''}${
+                    item.resource
+                  }
+                </span>
+                ${statusLabel ? `
+                  <span class="resource-status-label">${statusLabel}</span>
+                ` : ''}
+              </span>
+            `;
+          })
+          .join('')}
+      </div>
+    `;
+  }
+
   function renderSafetyDisclaimer() {
     return `
       <p class="safety-disclaimer">
@@ -113,6 +153,9 @@
           </button>
           <button class="bottom-view-tab" type="button" disabled>
             Daily forecast
+          </button>
+          <button class="bottom-view-tab" type="button" disabled>
+            Change location
           </button>
         </div>
       </div>
@@ -201,7 +244,27 @@
     `;
   }
 
-  function renderLoadedDetailsShell() {
+  function renderLocationPanel(locations, selectedLocationId) {
+    return `
+      <div class="location-panel-heading">Popular supported BC dive sites</div>
+      <div class="location-list" role="list">
+        ${locations.map((location) => `
+          <button
+            class="location-choice ${location.id === selectedLocationId ? 'active' : ''}"
+            type="button"
+            data-location-id="${location.id}"
+            aria-pressed="${location.id === selectedLocationId}"
+            role="listitem"
+          >
+            <span class="location-choice-name">${location.name}</span>
+            <span class="location-choice-area">${location.area}</span>
+          </button>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  function renderLoadedDetailsShell({ locations = [], selectedLocationId } = {}) {
     return `
       <div class="section details-view-section">
         <div class="details-view-content">
@@ -219,6 +282,9 @@
             data-view="forecast"
           >
             <div id="mainPanelContent" class="main-panel-content"></div>
+          </div>
+          <div class="details-view-panel" data-view="location">
+            ${renderLocationPanel(locations, selectedLocationId)}
           </div>
         </div>
         <div class="bottom-view-tabs" role="tablist">
@@ -240,6 +306,15 @@
           >
             Daily forecast
           </button>
+          <button
+            class="bottom-view-tab"
+            data-view="location"
+            type="button"
+            role="tab"
+            aria-selected="false"
+          >
+            Change location
+          </button>
         </div>
       </div>
     `;
@@ -250,9 +325,9 @@
     detailsShell,
     legend,
     location,
-    currentSource,
-    currentCoverageNote,
+    resourceStatuses = [],
     waterTemperature,
+    forecastAvailable = true,
   }) {
     return `
       <div class="section mt-2 timing-chart-section">
@@ -262,7 +337,16 @@
               <div class="assessment-context-label">
                 Dive conditions assessment for
               </div>
-              <h1 class="dive-site">${location}, BC, Canada</h1>
+              <div class="location-title-row">
+                <h1 class="dive-site">${location}, BC, Canada</h1>
+                <button
+                  class="header-location-link"
+                  type="button"
+                  data-open-location
+                >
+                  Change location
+                </button>
+              </div>
             </div>
           </div>
           <div class="col-auto assessment-temperature-column">
@@ -277,21 +361,21 @@
         <strong class="timing-header">
           When do conditions look most suitable?
         </strong>
-        <div class="usage-instruction date-instruction">
-          <strong>Select a date.</strong>
-          Dates shown have full current forecast coverage.
+        <div class="forecast-controls">
+          <div class="forecast-date-control">
+            <div class="workflow-instruction date-instruction-line">
+              <strong>Select a date.</strong>
+              <span>Dates shown have full current forecast coverage.</span>
+            </div>
+            ${dateSelector}
+          </div>
+          ${renderResourceStatuses(resourceStatuses)}
         </div>
-        ${dateSelector}
-        <div class="current-source-note">
-          <strong>Current source:</strong> ${currentSource}
-          ${currentCoverageNote ? `<span>${currentCoverageNote}</span>` : ''}
-        </div>
+        ${forecastAvailable ? `
         <div class="row g-2">
           <div class="col-12">
-            <span class="usage-instruction chart-instruction">
-              <strong>
-                Click or tap a colored time window to view its conditions below.
-              </strong>
+            <span class="workflow-instruction chart-instruction">
+              Click or tap a colored time window to view its conditions below.
             </span>
           </div>
           <div class="col-12 chart-legend-column">${legend}</div>
@@ -299,8 +383,17 @@
         <div class="main-tide-chart-wrap">
           <canvas id="mainTideChart"></canvas>
         </div>
+        ` : `
+          <div class="assessment-unavailable" role="status">
+            <strong>Complete assessment temporarily unavailable.</strong>
+            <span>
+              One or more required forecast resources did not respond.
+              Please try again shortly.
+            </span>
+          </div>
+        `}
       </div>
-      ${detailsShell}
+      ${forecastAvailable ? detailsShell : ''}
     `;
   }
 
@@ -319,7 +412,16 @@
               <div class="assessment-context-label">
                 Dive conditions assessment for
               </div>
-              <h1 class="dive-site">${location}, BC, Canada</h1>
+              <div class="location-title-row">
+                <h1 class="dive-site">${location}, BC, Canada</h1>
+                <button
+                  class="header-location-link"
+                  type="button"
+                  disabled
+                >
+                  Change location
+                </button>
+              </div>
             </div>
           </div>
           <div class="col-auto assessment-temperature-column">
@@ -337,20 +439,32 @@
         <strong class="timing-header">
           When do conditions look most suitable?
         </strong>
-        <div class="usage-instruction date-instruction">
-          <strong>Select a date.</strong>
-          Dates shown have full current forecast coverage.
-        </div>
-        ${dateSelector}
-        <div class="current-source-note">
-          <strong>Current source:</strong> Resolving the best available forecast
+        <div class="forecast-controls">
+          <div class="forecast-date-control">
+            <div class="workflow-instruction date-instruction-line">
+              <strong>Select a date.</strong>
+              <span>Dates shown have full current forecast coverage.</span>
+            </div>
+            ${dateSelector}
+          </div>
+          ${renderResourceStatuses([
+            { resource: 'Weather', source: 'Open-Meteo', status: 'loading' },
+            {
+              resource: 'Tides',
+              source: 'CHS tide station',
+              status: 'loading',
+            },
+            {
+              resource: 'Currents',
+              source: 'UBC SalishSeaCast',
+              status: 'loading',
+            },
+          ])}
         </div>
         <div class="row g-2">
           <div class="col-12">
-            <span class="usage-instruction chart-instruction">
-              <strong>
-                Click or tap a colored time window to view its conditions below.
-              </strong>
+            <span class="workflow-instruction chart-instruction">
+              Click or tap a colored time window to view its conditions below.
             </span>
           </div>
           <div class="col-12 chart-legend-column">${legend}</div>
@@ -364,10 +478,12 @@
   return {
     renderChartLegend,
     renderForecastDateSelector,
+    renderResourceStatuses,
     renderForecastPanel,
     renderLoadingChart,
     renderLoadingAssessmentShell,
     renderLoadingDetails,
+    renderLocationPanel,
     renderLoadedDetailsShell,
     renderLoadedAssessmentShell,
     renderSafetyDisclaimer,

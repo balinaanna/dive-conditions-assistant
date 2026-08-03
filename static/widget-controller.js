@@ -15,12 +15,13 @@
 
   function createWidgetController({
     initialDate = localDateString(),
-    locationId = 'whytecliff',
+    locationId: initialLocationId = 'whytecliff',
   } = {}) {
     let selectedDate = initialDate;
     let latestRequestId = 0;
     let activeView = 'selected';
     let availableForecastDates = null;
+    let locationId = initialLocationId;
 
     function beginRequest() {
       latestRequestId += 1;
@@ -38,7 +39,7 @@
     }
 
     function selectView(viewName) {
-      if (!['selected', 'forecast'].includes(viewName)) return false;
+      if (!['selected', 'forecast', 'location'].includes(viewName)) return false;
       activeView = viewName;
       return true;
     }
@@ -72,8 +73,16 @@
     }
 
     function setAvailableForecastDates(dates) {
-      if (!Array.isArray(dates) || dates.length === 0) return false;
+      if (!Array.isArray(dates)) return false;
       availableForecastDates = new Set(dates);
+      return true;
+    }
+
+    function selectLocation(nextLocationId) {
+      if (!nextLocationId || nextLocationId === locationId) return false;
+      locationId = nextLocationId;
+      availableForecastDates = null;
+      activeView = 'selected';
       return true;
     }
 
@@ -91,6 +100,7 @@
       },
       isCurrentRequest,
       selectDate,
+      selectLocation,
       selectView,
       setAvailableForecastDates,
     };

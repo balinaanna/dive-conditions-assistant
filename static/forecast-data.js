@@ -18,6 +18,7 @@
     const pendingForecastRequests = new Map();
     const temperatureCache = new Map();
     const pendingTemperatureRequests = new Map();
+    let locationsPromise = null;
 
     function cacheKey(locationId, forecastDate) {
       return `${locationId}:${forecastDate}`;
@@ -133,10 +134,24 @@
       temperatureCache.clear();
     }
 
+    function loadLocations() {
+      if (!locationsPromise) {
+        locationsPromise = fetchJson(
+          '/api/locations',
+          'Locations request failed',
+        ).catch((error) => {
+          locationsPromise = null;
+          throw error;
+        });
+      }
+      return locationsPromise;
+    }
+
     return {
       cachedForecastBundle,
       clearCaches,
       loadForecastBundle,
+      loadLocations,
       loadTemperatureSummary,
     };
   }

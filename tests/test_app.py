@@ -62,6 +62,14 @@ class AppRouteTests(unittest.TestCase):
         self.assertEqual(ready.status_code, 200)
         self.assertEqual(ready.get_json(), {"status": "ready"})
 
+        locations = self.client.get("/api/locations")
+        self.assertEqual(locations.status_code, 200)
+        payload = locations.get_json()
+        self.assertGreaterEqual(len(payload), 6)
+        self.assertEqual(payload[0]["id"], "whytecliff")
+        self.assertEqual(payload[0]["name"], "Whytecliff Park")
+        self.assertNotIn("latitude", payload[0])
+
     def test_responses_include_request_ids_and_structured_logs(self):
         with self.assertLogs(app_module.app.logger, level="INFO") as logs:
             response = self.client.get("/health")

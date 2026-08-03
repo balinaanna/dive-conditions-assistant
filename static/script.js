@@ -13,6 +13,7 @@ const {
 const {
   cachedForecastBundle,
   loadForecastBundle,
+  loadLocations,
   loadTemperatureSummary,
 } = window.ForecastData.createForecastDataService();
 
@@ -71,6 +72,9 @@ const COLORS = {
 };
 
 let selectedLocationId = 'whytecliff';
+let availableLocations = [
+  { id: 'whytecliff', name: 'Whytecliff Park', area: 'West Vancouver' },
+];
 
 let selectedHourIndex = 0;
 let selectedSuitabilityWindow = null;
@@ -115,7 +119,9 @@ function renderChartLegend() {
 }
 
 function selectedLocationName() {
-  return 'Whytecliff Park';
+  return availableLocations.find(
+    (location) => location.id === selectedLocationId,
+  )?.name || 'Selected dive site';
 }
 
 function renderConditionsLoadingState() {
@@ -490,6 +496,19 @@ function setDetailsView(viewName) {
   renderMainPanel();
 }
 
+function scrollDetailsIntoView() {
+  const detailsSection = document.querySelector('.details-view-section');
+  if (!detailsSection) return;
+
+  const reduceMotion = window.matchMedia(
+    '(prefers-reduced-motion: reduce)',
+  ).matches;
+  detailsSection.scrollIntoView({
+    behavior: reduceMotion ? 'auto' : 'smooth',
+    block: 'start',
+  });
+}
+
 function showForecastChart(panelName) {
   if (!appData) return;
 
@@ -558,65 +577,53 @@ function loadConditions(locationId, forecastDate = selectedForecastDate) {
       const hours = data.hourly_forecast;
       currentSpeedData = bundle.currentSpeed;
       widgetController.setAvailableForecastDates(
-        currentSpeedData?.fully_available_dates,
+        currentSpeedData?.fully_available_dates || [],
       );
       appData = data;
       selectedHours = hours;
       selectedForecastDate = data.daily.date;
 
-      const currentSource = [
-        currentSpeedData?.source,
-        currentSpeedData?.depth_average,
-      ].filter(Boolean).join(', ') || 'Unavailable';
-      const currentNotes = [];
-      if (currentSpeedData?.provider === 'chs_estimate') {
-        currentNotes.push('Using the low-confidence CHS event-curve fallback.');
-      } else if (currentSpeedData?.provider === 'unavailable') {
-        currentNotes.push('No current forecast is available for this date.');
+      const resourceStatuses = [
+        {
+          resource: 'Weather',
+          source: 'Open-Meteo',
+          status: 'available',
+        },
+        {
+          resource: 'Tides',
+          source: `CHS ${data.tides.station}`,
+          status: 'available',
+        },
+        ...(currentSpeedData?.resource_statuses || []),
+      ];
+      if (!currentSpeedData) {
+        resourceStatuses.push({
+          resource: 'Currents',
+          source: 'UBC SalishSeaCast',
+          status: 'temporarily_unavailable',
+        });
       }
-      if (currentSpeedData?.coverage?.partial_day) {
-        currentNotes.push(
-          'Coverage is partial; uncovered periods are marked not recommended.',
-        );
-      }
-      if (currentSpeedData?.confidence) {
-        currentNotes.push(`Confidence: ${currentSpeedData.confidence}.`);
-      }
-      const phaseStatus = currentSpeedData?.phase_comparison?.status;
-      const modelReversalCount =
-        currentSpeedData?.phase_comparison?.model_reversal_count;
-      const chsSlackCount = currentSpeedData?.phase_comparison?.chs_slack_count;
-      if (
-        Number.isInteger(modelReversalCount) &&
-        Number.isInteger(chsSlackCount) &&
-        modelReversalCount !== chsSlackCount
-      ) {
-        currentNotes.push(
-          `Model found ${modelReversalCount} reversals; ` +
-          `CHS reference has ${chsSlackCount} slack events.`,
-        );
-      }
-      if (
-        phaseStatus &&
-        !['fallback_source', 'not_comparable', 'unavailable'].includes(
-          phaseStatus,
-        )
-      ) {
-        currentNotes.push(
-          `CHS phase comparison: ${phaseStatus.replaceAll('_', ' ')}.`,
-        );
-      }
+      const fullForecastAvailable = Boolean(
+        currentSpeedData?.provider === 'salishseacast' &&
+        !currentSpeedData?.coverage?.partial_day &&
+        currentSpeedData?.fully_available_dates?.includes(data.daily.date),
+      );
 
       document.getElementById('conditionsSection').innerHTML =
         window.DiveViews.renderLoadedAssessmentShell({
           dateSelector: renderForecastDateSelector(),
-          detailsShell: window.DiveViews.renderLoadedDetailsShell(),
+          detailsShell: window.DiveViews.renderLoadedDetailsShell({
+            locations: availableLocations,
+            selectedLocationId,
+          }),
           legend: renderChartLegend(),
           location: data.location,
-          currentSource,
-          currentCoverageNote: currentNotes.join(' '),
+          resourceStatuses,
           waterTemperature: displayValue(data.current.water_temp_c, '°C'),
+          forecastAvailable: fullForecastAvailable,
         });
+
+      if (!fullForecastAvailable) return;
 
       const initialWindows = buildSuitabilityWindows(hours);
       const now = isTodaySelected() ? getCurrentDecimalHour() : null;
@@ -650,8 +657,14 @@ function loadConditions(locationId, forecastDate = selectedForecastDate) {
 }
 
 renderConditionsLoadingState();
-
-loadConditions(selectedLocationId);
+loadLocations()
+  .then((locations) => {
+    availableLocations = locations;
+  })
+  .catch((error) => {
+    console.warn('Failed to load locations:', error);
+  })
+  .finally(() => loadConditions(selectedLocationId));
 
 function formatLocalTime12(timeString) {
   return new Date(timeString).toLocaleTimeString('en-US', {
@@ -700,5 +713,24 @@ document.addEventListener('click', (event) => {
 
   if (button.matches('.bottom-view-tab[data-view]')) {
     setDetailsView(button.dataset.view);
+    return;
+  }
+
+  if (button.matches('.header-location-link[data-open-location]')) {
+    setDetailsView('location');
+    window.requestAnimationFrame(scrollDetailsIntoView);
+    return;
+  }
+
+  if (button.matches('.location-choice[data-location-id]')) {
+    const locationId = button.dataset.locationId;
+    if (!widgetController.selectLocation(locationId)) {
+      setDetailsView('selected');
+      return;
+    }
+
+    selectedForecastDate = localDateString();
+    widgetController.selectDate(selectedForecastDate);
+    loadConditions(locationId, selectedForecastDate);
   }
 });

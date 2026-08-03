@@ -37,6 +37,13 @@ test('shows only dates with full current forecast coverage', () => {
   );
 });
 
+test('shows no date options when current coverage is unavailable', () => {
+  const controller = createWidgetController();
+  controller.setAvailableForecastDates([]);
+
+  assert.deepEqual(controller.forecastDateOptions(), []);
+});
+
 test('date selection reports whether state actually changed', () => {
   const controller = createWidgetController({
     initialDate: '2026-07-29',
@@ -62,6 +69,20 @@ test('tracks only supported bottom-panel views', () => {
   assert.equal(controller.activeView, 'selected');
   assert.equal(controller.selectView('forecast'), true);
   assert.equal(controller.activeView, 'forecast');
+  assert.equal(controller.selectView('location'), true);
+  assert.equal(controller.activeView, 'location');
   assert.equal(controller.selectView('unknown'), false);
-  assert.equal(controller.activeView, 'forecast');
+  assert.equal(controller.activeView, 'location');
+});
+
+test('location selection resets location-specific coverage and selected view', () => {
+  const controller = createWidgetController();
+  controller.setAvailableForecastDates(['2026-07-29']);
+  controller.selectView('location');
+
+  assert.equal(controller.selectLocation('ogden_point'), true);
+  assert.equal(controller.locationId, 'ogden_point');
+  assert.equal(controller.activeView, 'selected');
+  assert.equal(controller.forecastDateOptions(new Date(2026, 6, 29)).length, 2);
+  assert.equal(controller.selectLocation('ogden_point'), false);
 });

@@ -142,20 +142,20 @@ confidence; larger differences are low confidence. A missing or extra event
 also makes the comparison divergent and low confidence. CHS values are not
 treated as local Whytecliff measurements.
 
-The current-provider fallback order is:
+The current-provider order is:
 
 1. SalishSeaCast forecast.
 2. CIOPS adapter (reserved but not yet configured).
-3. First Narrows CHS event-based estimated curve, explicitly marked low
-   confidence.
-4. Current unavailable.
+3. Current unavailable.
+
+First Narrows CHS events are used only to compare model phase. They are never
+used as a fallback current forecast for Whytecliff or another custom location.
 
 SalishSeaCast is a regional numerical model, not a measurement at the dive
 entry. Its rolling forecast can provide only partial coverage on the third
 displayed date. The application does not extrapolate model data across
-uncovered periods. When the model has no usable series, provenance and
-confidence identify whether the response came from the CHS fallback or is
-unavailable.
+uncovered periods. When the model has no usable series, current data is marked
+unavailable and the UI reports which forecast resources responded.
 
 ## Known limitations
 

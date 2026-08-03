@@ -14,6 +14,10 @@ LOCATION = {
     "name": "Whytecliff Park",
     "latitude": 49.3729,
     "longitude": -123.2909,
+    "current_reference_station": {
+        "id": "5dd30650e0fdc4b9b4be6d24",
+        "name": "First Narrows",
+    },
     "current_model": {
         "seed_grid_y": 479,
         "seed_grid_x": 328,
@@ -148,7 +152,7 @@ class CurrentForecastTests(unittest.TestCase):
     @patch("current_forecast.fetch_salishsea_currents")
     @patch("current_forecast.resolve_nearest_water_cell")
     @patch("current_forecast.fetch_chs_current_events")
-    def test_falls_back_to_chs_event_curve(
+    def test_does_not_use_chs_reference_as_a_location_forecast(
         self,
         fetch_chs,
         resolve_cell,
@@ -179,12 +183,28 @@ class CurrentForecastTests(unittest.TestCase):
             LOCAL_TIMEZONE,
         )
 
-        self.assertEqual(payload["provider"], "chs_estimate")
-        self.assertEqual(payload["confidence"], "low")
-        self.assertEqual(len(payload["points"]), 2)
+        self.assertEqual(payload["provider"], "unavailable")
+        self.assertEqual(payload["confidence"], "unavailable")
+        self.assertEqual(payload["points"], [])
         self.assertEqual(
             [attempt["provider"] for attempt in payload["provider_attempts"]],
-            ["salishseacast", "ciops", "chs_estimate"],
+            ["salishseacast", "ciops", "unavailable"],
+        )
+        self.assertEqual(
+            payload["resource_statuses"],
+            [
+                {
+                    "resource": "Currents",
+                    "source": "UBC SalishSeaCast",
+                    "status": "temporarily_unavailable",
+                },
+                {
+                    "resource": "Phase reference",
+                    "source": "CHS First Narrows",
+                    "status": "available",
+                    "role": "phase comparison only",
+                },
+            ],
         )
 
     @patch("current_forecast.fetch_salishsea_currents")
@@ -209,6 +229,39 @@ class CurrentForecastTests(unittest.TestCase):
         self.assertEqual(payload["provider"], "unavailable")
         self.assertEqual(payload["points"], [])
         self.assertFalse(payload["coverage"]["available"])
+
+    @patch("current_forecast.fetch_salishsea_currents")
+    @patch("current_forecast.resolve_nearest_water_cell")
+    @patch("current_forecast.fetch_chs_current_events")
+    def test_omits_unconfigured_phase_reference_for_other_locations(
+        self,
+        fetch_chs,
+        resolve_cell,
+        fetch_model,
+    ):
+        location = {
+            **LOCATION,
+            "name": "Ogden Point",
+        }
+        location.pop("current_reference_station")
+        resolve_cell.return_value = {
+            "grid_y": 300,
+            "grid_x": 194,
+            "distance_km": 0.2,
+        }
+        fetch_model.side_effect = requests.Timeout("model unavailable")
+
+        payload = build_current_forecast(
+            location,
+            FORECAST_DATE,
+            LOCAL_TIMEZONE,
+        )
+
+        fetch_chs.assert_not_called()
+        self.assertNotIn(
+            "Phase reference",
+            [item["resource"] for item in payload["resource_statuses"]],
+        )
 
 
 if __name__ == "__main__":

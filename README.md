@@ -101,16 +101,16 @@ the eventual website embed independent of an AI service.
 - **Open-Meteo marine forecast:** sea-surface temperature.
 - **Canadian Hydrographic Service:** Point Atkinson tide predictions.
 - **Canadian Hydrographic Service:** First Narrows current events for tidal
-  phase comparison and a low-confidence fallback curve.
+  phase comparison only; they are not used as a custom-location forecast.
 - **UBC SalishSeaCast:** hourly eastward and northward current components
   averaged over the upper five model levels, nominally five metres.
 
 The current forecast resolves the nearest wet SalishSeaCast cell around a
 configured grid seed rather than assuming that the seed is water. Vector
 components are interpolated before speed is calculated, and modelled reversal
-times are compared with CHS slack events to produce a confidence level. The
-fallback order is SalishSeaCast, a reserved CIOPS adapter, the CHS event-based
-estimate, then an explicit unavailable result. These limitations are documented in
+times are compared with CHS slack events as a diagnostic. The provider order
+is SalishSeaCast, a reserved CIOPS adapter, then an explicit unavailable
+result. These limitations are documented in
 [ASSESSMENT_METHOD.md](ASSESSMENT_METHOD.md).
 
 ## Project structure

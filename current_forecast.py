@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 
 import requests
 
-from chs_currents import FIRST_NARROWS_STATION, fetch_chs_current_events
+from chs_currents import fetch_chs_current_events
 from salishsea_currents import (
     DATASET_ID,
     GRID_DATASET_ID,
@@ -17,7 +17,6 @@ from salishsea_currents import (
 PROVIDER_ORDER = (
     "salishseacast",
     "ciops",
-    "chs_estimate",
     "unavailable",
 )
 PHASE_HIGH_CONFIDENCE_MINUTES = 60
@@ -251,46 +250,44 @@ def _ciops_payload(*_args, **_kwargs):
     raise CurrentProviderUnavailable("CIOPS provider is not configured.")
 
 
-def _chs_payload(chs_events, forecast_date, local_timezone):
-    points = _events_for_local_date(chs_events, forecast_date, local_timezone)
-    if not points:
-        raise CurrentProviderUnavailable(
-            "CHS has no current events for the requested local date."
-        )
-
-    return {
-        "source": "CHS First Narrows event-based estimate",
-        "provider": "chs_estimate",
-        "station": FIRST_NARROWS_STATION["name"],
-        "station_id": FIRST_NARROWS_STATION["id"],
-        "time_series_code": "wcp1-events",
-        "depth_average": None,
-        "points": points,
-        "coverage": _coverage(points),
-        "phase_comparison": {
-            "status": "fallback_source",
-            "confidence": "low",
-            "max_delta_minutes": None,
-            "comparisons": [],
-        },
-        "confidence": "low",
-    }
-
-
 def build_current_forecast(location, forecast_date, local_timezone):
     """Return the best available current series and transparent provenance."""
     start_local, end_local = _local_day_bounds(forecast_date, local_timezone)
     attempts = []
+    resource_statuses = []
 
-    try:
-        chs_events = fetch_chs_current_events(start_local, end_local)
-    except (requests.RequestException, KeyError, TypeError, ValueError) as error:
-        chs_events = []
-        attempts.append({
-            "provider": "chs_phase",
-            "status": "unavailable",
-            "reason": type(error).__name__,
-        })
+    reference_station = location.get("current_reference_station")
+    chs_events = []
+    if reference_station:
+        try:
+            chs_events = fetch_chs_current_events(
+                start_local,
+                end_local,
+                station=reference_station,
+            )
+            resource_statuses.append({
+                "resource": "Phase reference",
+                "source": f"CHS {reference_station['name']}",
+                "status": "available",
+                "role": "phase comparison only",
+            })
+        except (
+            requests.RequestException,
+            KeyError,
+            TypeError,
+            ValueError,
+        ) as error:
+            resource_statuses.append({
+                "resource": "Phase reference",
+                "source": f"CHS {reference_station['name']}",
+                "status": "temporarily_unavailable",
+                "role": "phase comparison only",
+            })
+            attempts.append({
+                "provider": "chs_phase",
+                "status": "unavailable",
+                "reason": type(error).__name__,
+            })
 
     providers = (
         ("salishseacast", lambda: _salishsea_payload(
@@ -304,17 +301,18 @@ def build_current_forecast(location, forecast_date, local_timezone):
             forecast_date,
             local_timezone,
         )),
-        ("chs_estimate", lambda: _chs_payload(
-            chs_events,
-            forecast_date,
-            local_timezone,
-        )),
     )
 
     for provider_name, load in providers:
         try:
             payload = load()
             attempts.append({"provider": provider_name, "status": "selected"})
+            if provider_name == "salishseacast":
+                resource_statuses.insert(0, {
+                    "resource": "Currents",
+                    "source": "UBC SalishSeaCast",
+                    "status": "available",
+                })
             payload.update({
                 "location": location["name"],
                 "unit": "kn",
@@ -322,6 +320,7 @@ def build_current_forecast(location, forecast_date, local_timezone):
                 "end_time": end_local.isoformat(),
                 "provider_order": list(PROVIDER_ORDER),
                 "provider_attempts": attempts,
+                "resource_statuses": resource_statuses,
             })
             return payload
         except (
@@ -336,6 +335,12 @@ def build_current_forecast(location, forecast_date, local_timezone):
                 "status": "unavailable",
                 "reason": type(error).__name__,
             })
+            if provider_name == "salishseacast":
+                resource_statuses.insert(0, {
+                    "resource": "Currents",
+                    "source": "UBC SalishSeaCast",
+                    "status": "temporarily_unavailable",
+                })
 
     return {
         "location": location["name"],
@@ -346,6 +351,7 @@ def build_current_forecast(location, forecast_date, local_timezone):
         "end_time": end_local.isoformat(),
         "depth_average": None,
         "points": [],
+        "fully_available_dates": [],
         "coverage": _coverage([]),
         "phase_comparison": {
             "status": "unavailable",
@@ -355,6 +361,7 @@ def build_current_forecast(location, forecast_date, local_timezone):
         },
         "confidence": "unavailable",
         "provider_order": list(PROVIDER_ORDER),
+        "resource_statuses": resource_statuses,
         "provider_attempts": attempts + [
             {"provider": "unavailable", "status": "selected"},
         ],

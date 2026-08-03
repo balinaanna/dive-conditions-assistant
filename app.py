@@ -19,8 +19,8 @@ app = Flask(__name__)
 LOCAL_TIMEZONE = ZoneInfo("America/Vancouver")
 
 FORECAST_DAYS = 3
-CURRENT_MODEL_CACHE_VERSION = "regional-chs-v1"
-ASSET_VERSION = "regional-chs-v1"
+CURRENT_MODEL_CACHE_VERSION = "regional-chs-v2"
+ASSET_VERSION = "regional-chs-v2"
 
 FORECAST_RESPONSE_CACHE = TTLCache(
     ttl_seconds=int(os.getenv("SERVER_CACHE_TTL_SECONDS", "900")),
@@ -104,6 +104,18 @@ def health():
 @app.route("/ready")
 def ready():
     return jsonify({"status": "ready"})
+
+
+@app.route("/api/locations")
+def get_locations():
+    return jsonify([
+        {
+            "id": location_id,
+            "name": location["name"],
+            "area": location["area"],
+        }
+        for location_id, location in LOCATIONS.items()
+    ])
 
 
 @app.route("/api/current-speed")
