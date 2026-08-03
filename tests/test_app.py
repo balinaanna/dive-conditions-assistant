@@ -198,7 +198,6 @@ class AppRouteTests(unittest.TestCase):
     @patch("app.fetch_temperature_summary")
     def test_temperature_endpoint_returns_summary(self, fetch_summary):
         fetch_summary.return_value = {
-            "air_temp_c": 18.5,
             "water_temp_c": 12.4,
         }
 

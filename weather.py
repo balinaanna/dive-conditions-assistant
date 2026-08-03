@@ -1,7 +1,9 @@
-import requests
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor
 from zoneinfo import ZoneInfo
+
+import requests
+
+from open_meteo import fetch_open_meteo_json
 from tides import fetch_tides_for_location
 
 LOCAL_TIMEZONE = ZoneInfo("America/Vancouver")
@@ -15,18 +17,10 @@ def fetch_temperature_summary(location, target_date):
     marine_latitude = location.get("marine_latitude", latitude)
     marine_longitude = location.get("marine_longitude", longitude)
 
-    weather_request = (
-        "https://api.open-meteo.com/v1/forecast",
-        {
-            "latitude": latitude,
-            "longitude": longitude,
-            "current": "temperature_2m",
-            "hourly": "temperature_2m",
-            "forecast_days": FORECAST_DAYS,
-            "timezone": "America/Vancouver",
-        },
-    )
-    marine_request = (
+    if is_freshwater:
+        return {"water_temp_c": None}
+
+    marine_data = fetch_open_meteo_json(
         "https://marine-api.open-meteo.com/v1/marine",
         {
             "latitude": marine_latitude,
@@ -37,65 +31,27 @@ def fetch_temperature_summary(location, target_date):
             "timezone": "America/Vancouver",
         },
     )
-
-    def fetch_json(request_config):
-        url, params = request_config
-        response = requests.get(url, params=params, timeout=10)
-        response.raise_for_status()
-        return response.json()
-
-    if is_freshwater:
-        weather_data = fetch_json(weather_request)
-        marine_data = None
-    else:
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            weather_future = executor.submit(fetch_json, weather_request)
-            marine_future = executor.submit(fetch_json, marine_request)
-            weather_data = weather_future.result()
-            marine_data = marine_future.result()
-
-    hourly_times = weather_data["hourly"]["time"]
-    target_indices = [
-        index
-        for index, time_value in enumerate(hourly_times)
-        if time_value.startswith(target_date)
-    ]
-
-    if not target_indices:
-        raise ValueError(f"No temperature forecast is available for {target_date}.")
-
-    noon_index = min(
-        target_indices,
-        key=lambda index: abs(int(hourly_times[index][11:13]) - 12),
+    marine_times = marine_data.get("hourly", {}).get("time", [])
+    marine_noon_time = f"{target_date}T12:00"
+    marine_noon_index = (
+        marine_times.index(marine_noon_time)
+        if marine_noon_time in marine_times
+        else None
     )
-    is_today = weather_data["current"]["time"].startswith(target_date)
-    air_temp_c = (
-        weather_data["current"]["temperature_2m"]
+    is_today = marine_data.get("current", {}).get("time", "").startswith(
+        target_date,
+    )
+    water_temp_c = (
+        marine_data.get("current", {}).get("sea_surface_temperature")
         if is_today
-        else weather_data["hourly"]["temperature_2m"][noon_index]
-    )
-
-    water_temp_c = None
-    if marine_data:
-        marine_times = marine_data.get("hourly", {}).get("time", [])
-        marine_noon_time = f"{target_date}T12:00"
-        marine_noon_index = (
-            marine_times.index(marine_noon_time)
-            if marine_noon_time in marine_times
+        else (
+            marine_data["hourly"]["sea_surface_temperature"][marine_noon_index]
+            if marine_noon_index is not None
             else None
         )
-        water_temp_c = (
-            marine_data.get("current", {}).get("sea_surface_temperature")
-            if is_today
-            else (
-                marine_data["hourly"]["sea_surface_temperature"][marine_noon_index]
-                if marine_noon_index is not None
-                else None
-            )
-        )
+    )
 
     return {
-        "air_temp_c": air_temp_c,
         "water_temp_c": water_temp_c,
     }
 
@@ -166,9 +122,7 @@ def fetch_conditions_for_location(session):
             "timezone": "America/Vancouver"
         }
 
-        weather_response = requests.get(weather_url, params=weather_params, timeout=10)
-        weather_response.raise_for_status()
-        weather_data = weather_response.json()
+        weather_data = fetch_open_meteo_json(weather_url, weather_params)
 
         marine_data = {
             "current": {}
@@ -185,9 +139,7 @@ def fetch_conditions_for_location(session):
                 "timezone": "America/Vancouver"
             }
 
-            marine_response = requests.get(marine_url, params=marine_params, timeout=10)
-            marine_response.raise_for_status()
-            marine_data = marine_response.json()
+            marine_data = fetch_open_meteo_json(marine_url, marine_params)
 
         weather_hourly = weather_data["hourly"]
         daily_dates = weather_data["daily"]["time"]
